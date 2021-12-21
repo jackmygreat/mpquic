@@ -1,0 +1,445 @@
+19:13:27 receiver.go:50: 
+19:13:32 receiver.go:133: FPS: 23.679321117273393
+19:13:32 receiver.go:134: throughput(MB): 3.111330995121605
+19:13:32 receiver.go:135: gocv time : 39.038791ms transfer time : 13.689876ms total time: 844.618809ms
+19:13:33 receiver.go:133: FPS: 23.38972535302662
+19:13:33 receiver.go:134: throughput(MB): 3.1372795009106187
+19:13:33 receiver.go:135: gocv time : 36.975865ms transfer time : 48.200776ms total time: 855.076308ms
+19:13:34 receiver.go:133: FPS: 21.38697076098899
+19:13:34 receiver.go:134: throughput(MB): 2.8688679475592522
+19:13:34 receiver.go:135: gocv time : 33.279231ms transfer time : 71.240785ms total time: 935.148798ms
+19:13:35 receiver.go:133: FPS: 19.582023931532174
+19:13:35 receiver.go:134: throughput(MB): 2.628103712721027
+19:13:35 receiver.go:135: gocv time : 41.594921ms transfer time : 30.956562ms total time: 1.021344886s
+19:13:36 receiver.go:133: FPS: 22.08139705748801
+19:13:36 receiver.go:134: throughput(MB): 2.965744172081669
+19:13:36 receiver.go:135: gocv time : 38.958695ms transfer time : 41.302685ms total time: 905.739793ms
+19:13:37 receiver.go:133: FPS: 19.243764767159934
+19:13:37 receiver.go:134: throughput(MB): 2.582450848668379
+19:13:37 receiver.go:135: gocv time : 39.864789ms transfer time : 83.739223ms total time: 1.039297676s
+19:13:38 receiver.go:133: FPS: 19.016586387402416
+19:13:38 receiver.go:134: throughput(MB): 2.550990363223573
+19:13:38 receiver.go:135: gocv time : 41.317554ms transfer time : 62.395335ms total time: 1.051713467s
+19:13:39 receiver.go:133: FPS: 16.603922725725525
+19:13:39 receiver.go:134: throughput(MB): 2.2253985654324304
+19:13:39 receiver.go:135: gocv time : 37.874896ms transfer time : 162.03007ms total time: 1.204534635s
+19:13:40 receiver.go:133: FPS: 20.674036330060225
+19:13:40 receiver.go:134: throughput(MB): 2.7749525419632235
+19:13:40 receiver.go:135: gocv time : 34.780444ms transfer time : 68.223159ms total time: 967.396965ms
+19:13:41 receiver.go:133: FPS: 23.20571812378757
+19:13:41 receiver.go:134: throughput(MB): 3.117436258662902
+19:13:41 receiver.go:135: gocv time : 27.127166ms transfer time : 21.735166ms total time: 861.856543ms
+19:13:42 receiver.go:133: FPS: 23.531341279322927
+19:13:42 receiver.go:134: throughput(MB): 3.155222045835407
+19:13:42 receiver.go:135: gocv time : 33.195374ms transfer time : 6.836695ms total time: 849.930302ms
+19:13:43 receiver.go:133: FPS: 24.19305287825488
+19:13:43 receiver.go:134: throughput(MB): 3.241972126547431
+19:13:43 receiver.go:135: gocv time : 29.581874ms transfer time : 13.449884ms total time: 826.683598ms
+19:13:43 receiver.go:133: FPS: 25.146991046656506
+19:13:43 receiver.go:134: throughput(MB): 3.3764649155104016
+19:13:43 receiver.go:135: gocv time : 34.315064ms transfer time : 5.097852ms total time: 795.323781ms
+19:13:44 receiver.go:133: FPS: 24.426091604690154
+19:13:44 receiver.go:134: throughput(MB): 3.276774855009184
+19:13:44 receiver.go:135: gocv time : 33.621042ms transfer time : 5.114524ms total time: 818.796569ms
+19:13:45 receiver.go:133: FPS: 26.1267428255298
+19:13:45 receiver.go:134: throughput(MB): 3.5085460657772827
+19:13:45 receiver.go:135: gocv time : 35.823321ms transfer time : 16.572251ms total time: 765.499172ms
+19:13:46 receiver.go:133: FPS: 24.25260589793957
+19:13:46 receiver.go:134: throughput(MB): 3.2546997300067604
+19:13:46 receiver.go:135: gocv time : 29.587445ms transfer time : 34.99181ms total time: 824.653651ms
+19:13:47 receiver.go:133: FPS: 25.137111821816024
+19:13:47 receiver.go:134: throughput(MB): 3.3717942602642874
+19:13:47 receiver.go:135: gocv time : 36.050075ms transfer time : 14.257986ms total time: 795.636354ms
+19:13:47 receiver.go:133: FPS: 25.096082610923354
+19:13:47 receiver.go:134: throughput(MB): 3.3669979963536103
+19:13:47 receiver.go:135: gocv time : 33.660737ms transfer time : 4.14736ms total time: 796.937128ms
+19:13:48 receiver.go:133: FPS: 20.196977710319512
+19:13:48 receiver.go:134: throughput(MB): 2.710915957606734
+19:13:48 receiver.go:135: gocv time : 35.472272ms transfer time : 50.358576ms total time: 990.247169ms
+19:13:49 receiver.go:133: FPS: 20.62731165511653
+19:13:49 receiver.go:134: throughput(MB): 2.766663630970625
+19:13:49 receiver.go:135: gocv time : 32.523431ms transfer time : 95.029982ms total time: 969.588298ms
+19:13:50 receiver.go:133: FPS: 19.378236699035817
+19:13:50 receiver.go:134: throughput(MB): 2.6001583523670027
+19:13:50 receiver.go:135: gocv time : 41.449184ms transfer time : 103.652863ms total time: 1.032085649s
+19:13:51 receiver.go:133: FPS: 21.894101789624536
+19:13:51 receiver.go:134: throughput(MB): 2.933305725689404
+19:13:51 receiver.go:135: gocv time : 30.989655ms transfer time : 69.526048ms total time: 913.488034ms
+19:13:52 receiver.go:133: FPS: 22.792194220492142
+19:13:52 receiver.go:134: throughput(MB): 3.0579680124683
+19:13:52 receiver.go:135: gocv time : 30.985194ms transfer time : 54.202832ms total time: 877.4934ms
+19:13:53 receiver.go:133: FPS: 22.31455720699184
+19:13:53 receiver.go:134: throughput(MB): 2.995182856140376
+19:13:53 receiver.go:135: gocv time : 37.418653ms transfer time : 52.4534ms total time: 896.275907ms
+19:13:54 receiver.go:133: FPS: 19.35282616558453
+19:13:54 receiver.go:134: throughput(MB): 2.596028066370691
+19:13:54 receiver.go:135: gocv time : 29.611481ms transfer time : 101.12653ms total time: 1.033440792s
+19:13:55 receiver.go:133: FPS: 19.050552415393206
+19:13:55 receiver.go:134: throughput(MB): 2.5586898224939527
+19:13:55 receiver.go:135: gocv time : 36.300943ms transfer time : 112.983112ms total time: 1.049838323s
+19:13:56 receiver.go:133: FPS: 22.19371134220293
+19:13:56 receiver.go:134: throughput(MB): 2.9746571806752398
+19:13:56 receiver.go:135: gocv time : 31.030576ms transfer time : 56.205567ms total time: 901.156174ms
+19:13:57 receiver.go:133: FPS: 24.024973537152338
+19:13:57 receiver.go:134: throughput(MB): 3.2248296622217993
+19:13:57 receiver.go:135: gocv time : 29.17628ms transfer time : 42.226698ms total time: 832.467098ms
+19:13:58 receiver.go:133: FPS: 24.46844774699977
+19:13:58 receiver.go:134: throughput(MB): 3.292030112037848
+19:13:58 receiver.go:135: gocv time : 31.862792ms transfer time : 32.191753ms total time: 817.37919ms
+19:13:59 receiver.go:133: FPS: 21.800620411647948
+19:13:59 receiver.go:134: throughput(MB): 2.9232149230771696
+19:13:59 receiver.go:135: gocv time : 35.620622ms transfer time : 65.733827ms total time: 917.405084ms
+19:14:00 receiver.go:133: FPS: 21.067767683374594
+19:14:00 receiver.go:134: throughput(MB): 2.8287410479862443
+19:14:00 receiver.go:135: gocv time : 35.99657ms transfer time : 74.282303ms total time: 949.317474ms
+19:14:01 receiver.go:133: FPS: 18.512370011922894
+19:14:01 receiver.go:134: throughput(MB): 2.48287618615272
+19:14:01 receiver.go:135: gocv time : 44.706786ms transfer time : 94.867576ms total time: 1.0803587s
+19:14:01 receiver.go:133: FPS: 23.797390596607222
+19:14:01 receiver.go:134: throughput(MB): 3.1965193301195116
+19:14:01 receiver.go:135: gocv time : 42.927614ms transfer time : 26.66801ms total time: 840.428278ms
+19:14:02 receiver.go:133: FPS: 22.16642499574039
+19:14:02 receiver.go:134: throughput(MB): 2.978914597393036
+19:14:02 receiver.go:135: gocv time : 45.700703ms transfer time : 58.071098ms total time: 902.265476ms
+19:14:04 receiver.go:133: FPS: 15.877503019184603
+19:14:04 receiver.go:134: throughput(MB): 2.1307442611246254
+19:14:04 receiver.go:135: gocv time : 44.227388ms transfer time : 157.880129ms total time: 1.259643911s
+19:14:05 receiver.go:133: FPS: 16.385058509384947
+19:14:05 receiver.go:134: throughput(MB): 2.1970349018447966
+19:14:05 receiver.go:135: gocv time : 42.051011ms transfer time : 143.678058ms total time: 1.220624265s
+19:14:06 receiver.go:133: FPS: 20.833744474259444
+19:14:06 receiver.go:134: throughput(MB): 2.7936781418095644
+19:14:06 receiver.go:135: gocv time : 28.749962ms transfer time : 58.072164ms total time: 959.981055ms
+19:14:07 receiver.go:133: FPS: 19.74672151995223
+19:14:07 receiver.go:134: throughput(MB): 2.6455270994531457
+19:14:07 receiver.go:135: gocv time : 43.255383ms transfer time : 66.640375ms total time: 1.012826356s
+19:14:08 receiver.go:133: FPS: 17.158499644936594
+19:14:08 receiver.go:134: throughput(MB): 2.2998602136343482
+19:14:08 receiver.go:135: gocv time : 41.518463ms transfer time : 153.29897ms total time: 1.165603078s
+19:14:09 receiver.go:133: FPS: 20.9630487484169
+19:14:09 receiver.go:134: throughput(MB): 2.8892534411643944
+19:14:09 receiver.go:135: gocv time : 28.625222ms transfer time : 81.486079ms total time: 954.0597ms
+19:14:10 receiver.go:133: FPS: 23.07935351038121
+19:14:10 receiver.go:134: throughput(MB): 3.2127246026196685
+19:14:10 receiver.go:135: gocv time : 32.068114ms transfer time : 60.033704ms total time: 866.5754ms
+19:14:11 receiver.go:133: FPS: 22.66037076363859
+19:14:11 receiver.go:134: throughput(MB): 3.0856606572158376
+19:14:11 receiver.go:135: gocv time : 35.867824ms transfer time : 43.560677ms total time: 882.598092ms
+19:14:12 receiver.go:133: FPS: 23.57964628700789
+19:14:12 receiver.go:134: throughput(MB): 3.3211936382660436
+19:14:12 receiver.go:135: gocv time : 37.129875ms transfer time : 15.910888ms total time: 848.189144ms
+19:14:12 receiver.go:133: FPS: 24.54854420179508
+19:14:12 receiver.go:134: throughput(MB): 3.3992294539678944
+19:14:12 receiver.go:135: gocv time : 29.889849ms transfer time : 37.248051ms total time: 814.712263ms
+19:14:13 receiver.go:133: FPS: 22.00670556642364
+19:14:13 receiver.go:134: throughput(MB): 2.960957094628259
+19:14:13 receiver.go:135: gocv time : 32.292182ms transfer time : 66.533621ms total time: 908.813904ms
+19:14:14 receiver.go:133: FPS: 24.620646979440917
+19:14:14 receiver.go:134: throughput(MB): 3.3115915545585923
+19:14:14 receiver.go:135: gocv time : 43.286832ms transfer time : 23.106677ms total time: 812.326338ms
+19:14:15 receiver.go:133: FPS: 17.056416238996363
+19:14:15 receiver.go:134: throughput(MB): 2.3721323577075712
+19:14:15 receiver.go:135: gocv time : 38.184266ms transfer time : 120.533099ms total time: 1.172579264s
+19:14:16 receiver.go:133: FPS: 23.607477192473976
+19:14:16 receiver.go:134: throughput(MB): 3.4432313822302456
+19:14:16 receiver.go:135: gocv time : 29.641757ms transfer time : 59.135048ms total time: 847.189212ms
+19:14:17 receiver.go:133: FPS: 20.293884426157724
+19:14:17 receiver.go:134: throughput(MB): 2.8805453580797424
+19:14:17 receiver.go:135: gocv time : 32.034512ms transfer time : 80.202537ms total time: 985.518572ms
+19:14:18 receiver.go:133: FPS: 21.67037443522697
+19:14:18 receiver.go:134: throughput(MB): 3.022307298809493
+19:14:18 receiver.go:135: gocv time : 32.438878ms transfer time : 42.634503ms total time: 922.918986ms
+19:15:06 receiver.go:50: 
+19:15:12 receiver.go:133: FPS: 22.697459356482312
+19:15:12 receiver.go:134: throughput(MB): 2.985923881162534
+19:15:12 receiver.go:135: gocv time : 33.467769ms transfer time : 11.42723ms total time: 881.15589ms
+19:15:13 receiver.go:133: FPS: 22.023054138296164
+19:15:13 receiver.go:134: throughput(MB): 2.8946602609850083
+19:15:13 receiver.go:135: gocv time : 30.561953ms transfer time : 40.72623ms total time: 908.139256ms
+19:15:14 receiver.go:133: FPS: 20.489069121577323
+19:15:14 receiver.go:134: throughput(MB): 2.815833292525077
+19:15:14 receiver.go:135: gocv time : 36.416905ms transfer time : 83.339512ms total time: 976.130242ms
+19:15:15 receiver.go:133: FPS: 23.433008011359966
+19:15:15 receiver.go:134: throughput(MB): 3.144571138763515
+19:15:15 receiver.go:135: gocv time : 32.075712ms transfer time : 38.048566ms total time: 853.496913ms
+19:15:16 receiver.go:133: FPS: 18.289384302545542
+19:15:16 receiver.go:134: throughput(MB): 2.4334612427784585
+19:15:16 receiver.go:135: gocv time : 50.690915ms transfer time : 104.312685ms total time: 1.093530524s
+19:15:17 receiver.go:133: FPS: 16.083746213687103
+19:15:17 receiver.go:134: throughput(MB): 2.1369746063280974
+19:15:17 receiver.go:135: gocv time : 58.775825ms transfer time : 123.902308ms total time: 1.243491394s
+19:15:18 receiver.go:133: FPS: 24.856011579451383
+19:15:18 receiver.go:134: throughput(MB): 3.3077516397538074
+19:15:18 receiver.go:135: gocv time : 35.089867ms transfer time : 39.754943ms total time: 804.634321ms
+19:15:19 receiver.go:133: FPS: 25.443003883473818
+19:15:19 receiver.go:134: throughput(MB): 3.384705486981786
+19:15:19 receiver.go:135: gocv time : 30.7739ms transfer time : 23.179488ms total time: 786.070705ms
+19:15:19 receiver.go:133: FPS: 24.65207713107873
+19:15:19 receiver.go:134: throughput(MB): 3.278801302522028
+19:15:19 receiver.go:135: gocv time : 34.187135ms transfer time : 35.18553ms total time: 811.290663ms
+19:15:20 receiver.go:133: FPS: 26.309844141272603
+19:15:20 receiver.go:134: throughput(MB): 3.49624331118666
+19:15:20 receiver.go:135: gocv time : 30.243113ms transfer time : 6.324754ms total time: 760.17174ms
+19:15:21 receiver.go:133: FPS: 19.018372069780813
+19:15:21 receiver.go:134: throughput(MB): 2.5269467362971008
+19:15:21 receiver.go:135: gocv time : 33.545647ms transfer time : 33.447495ms total time: 1.051614719s
+19:15:22 receiver.go:133: FPS: 16.78864252027005
+19:15:22 receiver.go:134: throughput(MB): 2.2304484658338146
+19:15:22 receiver.go:135: gocv time : 55.676833ms transfer time : 120.370643ms total time: 1.191281545s
+19:15:23 receiver.go:133: FPS: 20.331230614775194
+19:15:23 receiver.go:134: throughput(MB): 2.70610394278758
+19:15:23 receiver.go:135: gocv time : 31.254771ms transfer time : 68.364912ms total time: 983.708285ms
+19:15:24 receiver.go:133: FPS: 20.524676702835393
+19:15:24 receiver.go:134: throughput(MB): 2.733218035486821
+19:15:24 receiver.go:135: gocv time : 51.735888ms transfer time : 43.159582ms total time: 974.436786ms
+19:15:26 receiver.go:133: FPS: 16.84525527624538
+19:15:26 receiver.go:134: throughput(MB): 2.243338616490177
+19:15:26 receiver.go:135: gocv time : 38.845543ms transfer time : 153.566794ms total time: 1.187277941s
+19:15:27 receiver.go:133: FPS: 18.891149592760655
+19:15:27 receiver.go:134: throughput(MB): 2.510150944759626
+19:15:27 receiver.go:135: gocv time : 55.920473ms transfer time : 94.517605ms total time: 1.05869682s
+19:15:28 receiver.go:133: FPS: 16.946613551901308
+19:15:28 receiver.go:134: throughput(MB): 2.253067153280606
+19:15:28 receiver.go:135: gocv time : 54.146301ms transfer time : 140.808967ms total time: 1.180176791s
+19:15:29 receiver.go:133: FPS: 24.08735124734295
+19:15:29 receiver.go:134: throughput(MB): 3.2049636613352686
+19:15:29 receiver.go:135: gocv time : 36.820052ms transfer time : 40.877395ms total time: 830.311303ms
+19:15:29 receiver.go:133: FPS: 25.16241910626668
+19:15:29 receiver.go:134: throughput(MB): 3.3389045906859205
+19:15:29 receiver.go:135: gocv time : 33.862111ms transfer time : 4.30932ms total time: 794.836137ms
+19:15:30 receiver.go:133: FPS: 22.601253888636137
+19:15:30 receiver.go:134: throughput(MB): 3.0005306165989065
+19:15:30 receiver.go:135: gocv time : 36.880835ms transfer time : 55.679315ms total time: 884.906656ms
+19:15:31 receiver.go:133: FPS: 22.227087978748415
+19:15:31 receiver.go:134: throughput(MB): 2.9496769111011347
+19:15:31 receiver.go:135: gocv time : 31.313831ms transfer time : 72.108171ms total time: 899.80298ms
+19:15:32 receiver.go:133: FPS: 17.930018569143044
+19:15:32 receiver.go:134: throughput(MB): 2.379795065255764
+19:15:32 receiver.go:135: gocv time : 43.060869ms transfer time : 105.711609ms total time: 1.115447813s
+19:15:34 receiver.go:133: FPS: 16.241833125140374
+19:15:34 receiver.go:134: throughput(MB): 2.152936318774949
+19:15:34 receiver.go:135: gocv time : 60.845609ms transfer time : 134.289386ms total time: 1.231388098s
+19:15:35 receiver.go:133: FPS: 19.443810765250547
+19:15:35 receiver.go:134: throughput(MB): 2.6878865096220363
+19:15:35 receiver.go:135: gocv time : 31.369497ms transfer time : 91.472692ms total time: 1.02860495s
+19:15:36 receiver.go:133: FPS: 18.173073398024904
+19:15:36 receiver.go:134: throughput(MB): 2.502697977291811
+19:15:36 receiver.go:135: gocv time : 32.371661ms transfer time : 116.663851ms total time: 1.100529314s
+19:15:37 receiver.go:133: FPS: 17.039203302265076
+19:15:37 receiver.go:134: throughput(MB): 2.244352985242206
+19:15:37 receiver.go:135: gocv time : 35.554931ms transfer time : 125.023753ms total time: 1.173763799s
+19:15:38 receiver.go:133: FPS: 18.72793331511074
+19:15:38 receiver.go:134: throughput(MB): 2.464112873251511
+19:15:38 receiver.go:135: gocv time : 34.749604ms transfer time : 104.787655ms total time: 1.067923495s
+19:15:39 receiver.go:133: FPS: 17.17130084832468
+19:15:39 receiver.go:134: throughput(MB): 2.259424655571965
+19:15:39 receiver.go:135: gocv time : 38.607277ms transfer time : 137.351396ms total time: 1.164734121s
+19:15:40 receiver.go:133: FPS: 16.57215181801311
+19:15:40 receiver.go:134: throughput(MB): 2.265075899511167
+19:15:40 receiver.go:135: gocv time : 37.376012ms transfer time : 139.267779ms total time: 1.20684388s
+19:15:41 receiver.go:133: FPS: 18.159155819488635
+19:15:41 receiver.go:134: throughput(MB): 2.501305190286571
+19:15:41 receiver.go:135: gocv time : 36.333526ms transfer time : 120.950451ms total time: 1.101372784s
+19:15:43 receiver.go:133: FPS: 17.143342769674923
+19:15:43 receiver.go:134: throughput(MB): 2.2862231882914195
+19:15:43 receiver.go:135: gocv time : 35.898174ms transfer time : 143.768101ms total time: 1.166633618s
+19:15:44 receiver.go:133: FPS: 17.116025245004156
+19:15:44 receiver.go:134: throughput(MB): 2.283699909520175
+19:15:44 receiver.go:135: gocv time : 36.194059ms transfer time : 160.361042ms total time: 1.168495589s
+19:15:45 receiver.go:133: FPS: 18.39731041109159
+19:15:45 receiver.go:134: throughput(MB): 2.4524670849179038
+19:15:45 receiver.go:135: gocv time : 37.695266ms transfer time : 99.285961ms total time: 1.087115429s
+19:15:46 receiver.go:133: FPS: 17.01493059138498
+19:15:46 receiver.go:134: throughput(MB): 2.2697708344075127
+19:15:46 receiver.go:135: gocv time : 47.91988ms transfer time : 141.334105ms total time: 1.175438236s
+19:15:47 receiver.go:133: FPS: 15.913037655265269
+19:15:47 receiver.go:134: throughput(MB): 2.121688526643775
+19:15:47 receiver.go:135: gocv time : 61.028704ms transfer time : 156.421137ms total time: 1.256831061s
+19:15:48 receiver.go:133: FPS: 18.721701749968762
+19:15:48 receiver.go:134: throughput(MB): 2.4929330596404324
+19:15:48 receiver.go:135: gocv time : 31.988719ms transfer time : 104.218364ms total time: 1.068278956s
+19:15:50 receiver.go:133: FPS: 15.347808388597915
+19:15:50 receiver.go:134: throughput(MB): 2.0449871261080683
+19:15:50 receiver.go:135: gocv time : 49.176028ms transfer time : 179.879684ms total time: 1.30311765s
+19:15:51 receiver.go:133: FPS: 17.803157531879446
+19:15:51 receiver.go:134: throughput(MB): 2.3773294256439517
+19:15:51 receiver.go:135: gocv time : 40.612287ms transfer time : 134.94591ms total time: 1.123396227s
+19:15:52 receiver.go:133: FPS: 19.212171017928018
+19:15:52 receiver.go:134: throughput(MB): 2.561891527316648
+19:15:52 receiver.go:135: gocv time : 38.103499ms transfer time : 122.293954ms total time: 1.041006765s
+19:15:53 receiver.go:133: FPS: 17.677247006926542
+19:15:53 receiver.go:134: throughput(MB): 2.3612780681109165
+19:15:53 receiver.go:135: gocv time : 43.278702ms transfer time : 130.414461ms total time: 1.131397892s
+19:15:54 receiver.go:133: FPS: 18.277733980570073
+19:15:54 receiver.go:134: throughput(MB): 2.4360936998323863
+19:15:54 receiver.go:135: gocv time : 40.686675ms transfer time : 104.851963ms total time: 1.094227546s
+19:15:55 receiver.go:133: FPS: 20.311698181432625
+19:15:55 receiver.go:134: throughput(MB): 2.7090519407685774
+19:15:55 receiver.go:135: gocv time : 32.268796ms transfer time : 65.111215ms total time: 984.654253ms
+19:15:56 receiver.go:133: FPS: 23.426972421907458
+19:15:56 receiver.go:134: throughput(MB): 3.1189864850935787
+19:15:56 receiver.go:135: gocv time : 30.681486ms transfer time : 42.777769ms total time: 853.716803ms
+19:15:57 receiver.go:133: FPS: 19.58933592009208
+19:15:57 receiver.go:134: throughput(MB): 2.6075897221787914
+19:15:57 receiver.go:135: gocv time : 38.346562ms transfer time : 99.923975ms total time: 1.020963655s
+19:15:58 receiver.go:133: FPS: 17.060222150006872
+19:15:58 receiver.go:134: throughput(MB): 2.286105008695
+19:15:58 receiver.go:135: gocv time : 46.20434ms transfer time : 142.457868ms total time: 1.172317677s
+19:15:59 receiver.go:133: FPS: 17.261262305427675
+19:15:59 receiver.go:134: throughput(MB): 2.3010681513304148
+19:15:59 receiver.go:135: gocv time : 35.221989ms transfer time : 150.223456ms total time: 1.158663813s
+19:16:23 receiver.go:50: 
+19:16:30 receiver.go:133: FPS: 23.748719510604246
+19:16:30 receiver.go:134: throughput(MB): 3.1477036829677414
+19:16:30 receiver.go:135: gocv time : 27.7007ms transfer time : 30.209141ms total time: 842.150668ms
+19:16:30 receiver.go:133: FPS: 25.96153594651467
+19:16:30 receiver.go:134: throughput(MB): 3.441573002171839
+19:16:30 receiver.go:135: gocv time : 34.010508ms transfer time : 8.015195ms total time: 770.370445ms
+19:16:31 receiver.go:133: FPS: 23.792811936692907
+19:16:31 receiver.go:134: throughput(MB): 3.1449503170428676
+19:16:31 receiver.go:135: gocv time : 26.813944ms transfer time : 25.51548ms total time: 840.590009ms
+19:16:32 receiver.go:133: FPS: 25.98688627655859
+19:16:32 receiver.go:134: throughput(MB): 3.443226000595785
+19:16:32 receiver.go:135: gocv time : 29.496488ms transfer time : 22.432738ms total time: 769.618945ms
+19:16:33 receiver.go:133: FPS: 26.29431770683374
+19:16:33 receiver.go:134: throughput(MB): 3.574321122734051
+19:16:33 receiver.go:135: gocv time : 34.335801ms transfer time : 16.647575ms total time: 760.620611ms
+19:16:33 receiver.go:133: FPS: 26.798504913018814
+19:16:33 receiver.go:134: throughput(MB): 3.7321797442573073
+19:16:33 receiver.go:135: gocv time : 28.327049ms transfer time : 11.892038ms total time: 746.310291ms
+19:16:34 receiver.go:133: FPS: 26.053822742582483
+19:16:34 receiver.go:134: throughput(MB): 3.591762924553636
+19:16:34 receiver.go:135: gocv time : 27.386339ms transfer time : 15.72976ms total time: 767.64167ms
+19:16:35 receiver.go:133: FPS: 25.51318941767552
+19:16:35 receiver.go:134: throughput(MB): 3.5511931602961484
+19:16:35 receiver.go:135: gocv time : 29.079907ms transfer time : 6.109157ms total time: 783.908263ms
+19:16:36 receiver.go:133: FPS: 25.754647850190455
+19:16:36 receiver.go:134: throughput(MB): 3.45013705883102
+19:16:36 receiver.go:135: gocv time : 27.758441ms transfer time : 8.098353ms total time: 776.558861ms
+19:16:37 receiver.go:133: FPS: 25.918753290134642
+19:16:37 receiver.go:134: throughput(MB): 3.4142324710671965
+19:16:37 receiver.go:135: gocv time : 35.856199ms transfer time : 3.604467ms total time: 771.642053ms
+19:16:37 receiver.go:133: FPS: 25.832767603257377
+19:16:37 receiver.go:134: throughput(MB): 3.407177616037652
+19:16:37 receiver.go:135: gocv time : 26.250257ms transfer time : 4.59791ms total time: 774.210503ms
+19:16:38 receiver.go:133: FPS: 24.80648609039797
+19:16:38 receiver.go:134: throughput(MB): 3.2689834714045096
+19:16:38 receiver.go:135: gocv time : 34.257924ms transfer time : 10.173352ms total time: 806.240752ms
+19:16:39 receiver.go:133: FPS: 25.367719232782658
+19:16:39 receiver.go:134: throughput(MB): 3.33858898154586
+19:16:39 receiver.go:135: gocv time : 30.713477ms transfer time : 5.875324ms total time: 788.403554ms
+19:16:40 receiver.go:133: FPS: 25.01978442580944
+19:16:40 receiver.go:134: throughput(MB): 3.2919223685375165
+19:16:40 receiver.go:135: gocv time : 29.715494ms transfer time : 4.587135ms total time: 799.367399ms
+19:16:40 receiver.go:133: FPS: 25.08839211302339
+19:16:40 receiver.go:134: throughput(MB): 3.301127521917349
+19:16:40 receiver.go:135: gocv time : 26.615089ms transfer time : 5.505792ms total time: 797.181418ms
+19:16:41 receiver.go:133: FPS: 25.926283665430034
+19:16:41 receiver.go:134: throughput(MB): 3.4159352847467446
+19:16:41 receiver.go:135: gocv time : 29.133712ms transfer time : 5.150819ms total time: 771.417927ms
+19:16:42 receiver.go:133: FPS: 25.808220691504538
+19:16:42 receiver.go:134: throughput(MB): 3.3940272949809263
+19:16:42 receiver.go:135: gocv time : 27.060537ms transfer time : 3.644292ms total time: 774.946876ms
+19:16:43 receiver.go:133: FPS: 26.252919190067725
+19:16:43 receiver.go:134: throughput(MB): 3.4526608633072486
+19:16:43 receiver.go:135: gocv time : 36.113048ms transfer time : 4.566096ms total time: 761.820042ms
+19:16:44 receiver.go:133: FPS: 25.610590671753144
+19:16:44 receiver.go:134: throughput(MB): 3.3739684693816967
+19:16:44 receiver.go:135: gocv time : 30.762694ms transfer time : 10.120924ms total time: 780.926932ms
+19:16:44 receiver.go:133: FPS: 24.900727925594026
+19:16:44 receiver.go:134: throughput(MB): 3.2901380043368915
+19:16:44 receiver.go:135: gocv time : 29.58481ms transfer time : 31.828544ms total time: 803.189371ms
+19:16:45 receiver.go:133: FPS: 26.505716885546462
+19:16:45 receiver.go:134: throughput(MB): 3.6031828197914795
+19:16:45 receiver.go:135: gocv time : 39.202898ms transfer time : 4.370093ms total time: 754.5542ms
+19:16:46 receiver.go:133: FPS: 26.047625637606313
+19:16:46 receiver.go:134: throughput(MB): 3.6141088024464234
+19:16:46 receiver.go:135: gocv time : 26.764519ms transfer time : 9.999704ms total time: 767.824303ms
+19:16:47 receiver.go:133: FPS: 27.494843465834776
+19:16:47 receiver.go:134: throughput(MB): 3.748591845520343
+19:16:47 receiver.go:135: gocv time : 29.955464ms transfer time : 7.896906ms total time: 727.409124ms
+19:16:47 receiver.go:133: FPS: 26.704944465866262
+19:16:47 receiver.go:134: throughput(MB): 3.629127372948138
+19:16:47 receiver.go:135: gocv time : 30.120322ms transfer time : 22.979348ms total time: 748.92498ms
+19:16:48 receiver.go:133: FPS: 27.900753954680418
+19:16:48 receiver.go:134: throughput(MB): 3.68651739016825
+19:16:48 receiver.go:135: gocv time : 26.981644ms transfer time : 8.02304ms total time: 716.826507ms
+19:16:49 receiver.go:133: FPS: 26.32646367694236
+19:16:49 receiver.go:134: throughput(MB): 3.4693830991867154
+19:16:49 receiver.go:135: gocv time : 30.930581ms transfer time : 22.1485ms total time: 759.691854ms
+19:16:50 receiver.go:133: FPS: 26.57793707423831
+19:16:50 receiver.go:134: throughput(MB): 3.510395727809953
+19:16:50 receiver.go:135: gocv time : 33.448323ms transfer time : 14.75118ms total time: 752.503851ms
+19:16:50 receiver.go:133: FPS: 26.318356344533793
+19:16:50 receiver.go:134: throughput(MB): 3.473278044790264
+19:16:50 receiver.go:135: gocv time : 27.156485ms transfer time : 19.358905ms total time: 759.925876ms
+19:16:51 receiver.go:133: FPS: 27.808558646490596
+19:16:51 receiver.go:134: throughput(MB): 3.762739775823711
+19:16:51 receiver.go:135: gocv time : 27.727289ms transfer time : 10.990708ms total time: 719.203043ms
+19:16:52 receiver.go:133: FPS: 25.61755378726918
+19:16:52 receiver.go:134: throughput(MB): 3.5552022265847536
+19:16:52 receiver.go:135: gocv time : 30.269923ms transfer time : 23.473751ms total time: 780.714668ms
+19:16:53 receiver.go:133: FPS: 25.983768874999466
+19:16:53 receiver.go:134: throughput(MB): 3.4979175921616554
+19:16:53 receiver.go:135: gocv time : 32.997255ms transfer time : 32.765054ms total time: 769.71128ms
+19:16:53 receiver.go:133: FPS: 25.328948735267776
+19:16:53 receiver.go:134: throughput(MB): 3.337212479134483
+19:16:53 receiver.go:135: gocv time : 29.6818ms transfer time : 4.7831ms total time: 789.610347ms
+19:16:54 receiver.go:133: FPS: 26.243605642151092
+19:16:54 receiver.go:134: throughput(MB): 3.4556807129583214
+19:16:54 receiver.go:135: gocv time : 31.022807ms transfer time : 6.194181ms total time: 762.090403ms
+19:16:55 receiver.go:133: FPS: 26.797382188923503
+19:16:55 receiver.go:134: throughput(MB): 3.5230291753834964
+19:16:55 receiver.go:135: gocv time : 30.728961ms transfer time : 3.007771ms total time: 746.341559ms
+19:16:56 receiver.go:133: FPS: 27.57075673884746
+19:16:56 receiver.go:134: throughput(MB): 3.6287243530672857
+19:16:56 receiver.go:135: gocv time : 32.835442ms transfer time : 3.671433ms total time: 725.406277ms
+19:16:56 receiver.go:133: FPS: 26.036674066610555
+19:16:56 receiver.go:134: throughput(MB): 3.422661962524095
+19:16:56 receiver.go:135: gocv time : 27.986251ms transfer time : 5.9158ms total time: 768.147266ms
+19:16:57 receiver.go:133: FPS: 24.61035837752762
+19:16:57 receiver.go:134: throughput(MB): 3.244413491092157
+19:16:57 receiver.go:135: gocv time : 37.773055ms transfer time : 6.47967ms total time: 812.665939ms
+19:16:58 receiver.go:133: FPS: 25.913113263852207
+19:16:58 receiver.go:134: throughput(MB): 3.4070209786516448
+19:16:58 receiver.go:135: gocv time : 25.135935ms transfer time : 8.724582ms total time: 771.810002ms
+19:16:59 receiver.go:133: FPS: 24.885027719139977
+19:16:59 receiver.go:134: throughput(MB): 3.273049349222314
+19:16:59 receiver.go:135: gocv time : 33.354797ms transfer time : 4.891711ms total time: 803.696111ms
+19:17:00 receiver.go:133: FPS: 25.23081999362639
+19:17:00 receiver.go:134: throughput(MB): 3.3182800737677045
+19:17:00 receiver.go:135: gocv time : 30.342186ms transfer time : 3.507415ms total time: 792.681332ms
+19:17:00 receiver.go:133: FPS: 25.19798831104379
+19:17:00 receiver.go:134: throughput(MB): 3.316646377871507
+19:17:00 receiver.go:135: gocv time : 33.570169ms transfer time : 7.210476ms total time: 793.714155ms
+19:17:01 receiver.go:133: FPS: 27.193815110482944
+19:17:01 receiver.go:134: throughput(MB): 3.5759596118875776
+19:17:01 receiver.go:135: gocv time : 29.564334ms transfer time : 3.492797ms total time: 735.461351ms
+19:17:02 receiver.go:133: FPS: 24.959451218742483
+19:17:02 receiver.go:134: throughput(MB): 3.2866905837237548
+19:17:02 receiver.go:135: gocv time : 34.400131ms transfer time : 5.760005ms total time: 801.299669ms
+19:17:03 receiver.go:133: FPS: 25.59090054727062
+19:17:03 receiver.go:134: throughput(MB): 3.370976662122127
+19:17:03 receiver.go:135: gocv time : 30.44499ms transfer time : 4.935099ms total time: 781.527792ms
+19:17:04 receiver.go:133: FPS: 25.516775074324084
+19:17:04 receiver.go:134: throughput(MB): 3.3655038630321683
+19:17:04 receiver.go:135: gocv time : 27.775719ms transfer time : 7.433262ms total time: 783.798107ms
+19:17:04 receiver.go:133: FPS: 25.969936585920642
+19:17:04 receiver.go:134: throughput(MB): 3.4213524525929015
+19:17:04 receiver.go:135: gocv time : 27.879678ms transfer time : 6.249716ms total time: 770.121249ms
+19:17:05 receiver.go:133: FPS: 26.47279509314036
+19:17:05 receiver.go:134: throughput(MB): 3.492052652978471
+19:17:05 receiver.go:135: gocv time : 33.420138ms transfer time : 4.983423ms total time: 755.49257ms
+19:17:06 receiver.go:133: FPS: 23.272378231059758
+19:17:06 receiver.go:134: throughput(MB): 3.0842788037949203
+19:17:06 receiver.go:135: gocv time : 30.621252ms transfer time : 43.27785ms total time: 859.387889ms
+19:17:07 receiver.go:133: FPS: 26.25885840290572
+19:17:07 receiver.go:134: throughput(MB): 3.6459478890776125
+19:17:07 receiver.go:135: gocv time : 33.991399ms transfer time : 3.417755ms total time: 761.647734ms
+19:17:07 receiver.go:133: FPS: 24.922045151174494
+19:17:07 receiver.go:134: throughput(MB): 3.4487328845613887
+19:17:07 receiver.go:135: gocv time : 32.164149ms transfer time : 5.352559ms total time: 802.502358ms
+19:19:28 receiver.go:50: 
+16:34:26 receiver.go:51: 
+22:35:27 receiver.go:51: 
+09:42:57 receiver.go:51: 
