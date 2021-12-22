@@ -67,16 +67,19 @@ func pullflv(url, filename string) {
 	quicConfig := &quic.Config{
 		CreatePaths: true,
 	}
-	listener, err := quic.ListenAddr(quicServerAddr, generateTLSConfig(), quicConfig)
+	sess, err := quic.DialAddr(url, &tls.Config{InsecureSkipVerify: true}, quicConfig)
 	HandleError(err)
-	sess, err := listener.Accept() //accepting a session from sender
-	HandleError(err)
+
 	videostream, err := sess.AcceptStream()
 	HandleError(err)
 	controlstream, err := sess.AcceptStream()
 	HandleError(err)
 	for {
 		controlinfo := make([]byte,11+4)
+		str := string(controlinfo[0:3])
+		if str == "fin"{
+			break
+		}
 		_, err := io.ReadFull(controlstream, controlinfo) //recieve the size
 		HandleError(err)
 		tag := httpflv.Tag{}

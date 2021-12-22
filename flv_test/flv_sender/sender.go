@@ -63,10 +63,13 @@ func pushflv(url, filename string) {
 	quicConfig := &quic.Config{
 		CreatePaths: true, //要求创建多路径
 	}
+	listener, err := quic.ListenAddr(url, generateTLSConfig(), quicConfig)
+	HandleError(err)
+	sess, err := listener.Accept() //accepting a session from sender
+	HandleError(err)
 	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
 	HandleError(err)
-	sess, err := quic.DialAddr(url, &tls.Config{InsecureSkipVerify: true}, quicConfig)
-	HandleError(err)
+
 	stream, err := sess.OpenStream()
 	HandleError(err)
 	defer stream.Close()
@@ -181,7 +184,13 @@ func loopPush(tags []httpflv.Tag, stream quic.Stream,controlstream quic.Stream) 
 		} // tags for loop
 
 		totalBaseTS = prevTS + 1
-	}
+		controlInfo := make([]byte,11+4)
+		copy(controlInfo,[]byte("fin"))
+		controlstream.Write(controlInfo)
+		break
+	}// tag 发送完
+
+
 }
 
 func generateTLSConfig() *tls.Config {
