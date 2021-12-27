@@ -220,7 +220,9 @@ func (f *streamFramer) maybePopNormalFrames(maxBytes protocol.ByteCount) (res []
 			// We are now stream-level FC blocked
 			f.blockedFrameQueue = append(f.blockedFrameQueue, &wire.BlockedFrame{StreamID: s.StreamID()})
 		}
-
+		if val,ok := s.sess.streamsMap.unreliableStreamMark[s.streamID];ok{
+			frame.UnreliableMarker = val
+		}
 		res = append(res, frame)
 		currentLen += frameHeaderBytes + frame.DataLen()
 
@@ -229,6 +231,9 @@ func (f *streamFramer) maybePopNormalFrames(maxBytes protocol.ByteCount) (res []
 		}
 
 		frame = &wire.StreamFrame{DataLenPresent: true}
+		if val,ok := s.sess.streamsMap.unreliableStreamMark[s.streamID];ok{
+			frame.UnreliableMarker = val
+		}
 		return true, nil
 	}
 
@@ -248,11 +253,13 @@ func maybeSplitOffFrame(frame *wire.StreamFrame, n protocol.ByteCount) *wire.Str
 		frame.Offset += n
 	}()
 
+
 	return &wire.StreamFrame{
 		FinBit:         false,
 		StreamID:       frame.StreamID,
 		Offset:         frame.Offset,
 		Data:           frame.Data[:n],
 		DataLenPresent: frame.DataLenPresent,
+		UnreliableMarker: frame.UnreliableMarker,
 	}
 }

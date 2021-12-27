@@ -5,10 +5,10 @@ import (
 
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/ackhandler"
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/congestion"
-	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/qerr"
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/protocol"
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/utils"
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/wire"
+	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/qerr"
 )
 
 const (
@@ -198,7 +198,7 @@ func (p *path) handlePacketImpl(pkt *receivedPacket) error {
 		hdr.PacketNumber,
 	)
 
-	packet, err := p.sess.unpacker.Unpack(hdr.Raw, hdr, data)
+	packet, err := p.sess.unpacker.Unpack(hdr.Raw, hdr, data)//传入了header的原始数据、header结构体和报文的payload数据
 	if utils.Debug() {
 		if err != nil {
 			utils.Debugf("<- Reading packet 0x%x (%d bytes) for connection %x on path %x", hdr.PacketNumber, len(data)+len(hdr.Raw), hdr.ConnectionID, p.pathID)

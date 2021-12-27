@@ -1,41 +1,38 @@
 package wire
 
-import (
-	"bytes"
-	"errors"
-	"io"
 
-	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/protocol"
-	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/utils"
-	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/qerr"
+
+import (
+"bytes"
+"errors"
+"io"
+
+"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/protocol"
+"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/utils"
+"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/qerr"
 )
 
 // A StreamFrame of QUIC
-type StreamFrame struct {
+type DatagramFrame struct {
 	StreamID       protocol.StreamID
-	UnreliableMarker bool
 	FinBit         bool
 	DataLenPresent bool
 	Offset         protocol.ByteCount
 	Data           []byte
 }
 
-var (
-	errInvalidStreamIDLen = errors.New("StreamFrame: Invalid StreamID length")
-	errInvalidOffsetLen   = errors.New("StreamFrame: Invalid offset length")
-)
+
 
 // ParseStreamFrame reads a stream frame. The type byte must not have been read yet.
-func ParseStreamFrame(r *bytes.Reader, version protocol.VersionNumber) (*StreamFrame, error) {
-	frame := &StreamFrame{}
+func ParseDatagramFrame(r *bytes.Reader, version protocol.VersionNumber) (*DatagramFrame, error) {
+	frame := &DatagramFrame{}
 
 	typeByte, err := r.ReadByte()
-	typeByte &= 0xFE
 	if err != nil {
 		return nil, err
 	}
 
-	frame.FinBit = typeByte&0x40 > 0
+	frame.FinBit = typeByte&0x40 > 0 //判断是否是结束帧，为什么这样判断？？？
 	frame.DataLenPresent = typeByte&0x20 > 0
 	offsetLen := typeByte & 0x1c >> 2
 	if offsetLen != 0 {
@@ -87,17 +84,13 @@ func ParseStreamFrame(r *bytes.Reader, version protocol.VersionNumber) (*StreamF
 	return frame, nil
 }
 
-// WriteStreamFrame writes a stream frame.
-func (f *StreamFrame) Write(b *bytes.Buffer, version protocol.VersionNumber) error {
+// WriteStreamFrame writes a Datagram frame.
+func (f *DatagramFrame) Write(b *bytes.Buffer, version protocol.VersionNumber) error {
 	if len(f.Data) == 0 && !f.FinBit {
 		return errors.New("StreamFrame: attempting to write empty frame without FIN")
 	}
 
-
 	typeByte := uint8(0x80) // sets the leftmost bit to 1
-	if f.UnreliableMarker {
-		typeByte ^= 0x01
-	}
 	if f.FinBit {
 		typeByte ^= 0x40
 	}
@@ -156,7 +149,7 @@ func (f *StreamFrame) Write(b *bytes.Buffer, version protocol.VersionNumber) err
 	return nil
 }
 
-func (f *StreamFrame) calculateStreamIDLength() uint8 {
+func (f *DatagramFrame) calculateStreamIDLength() uint8 {
 	if f.StreamID < (1 << 8) {
 		return 1
 	} else if f.StreamID < (1 << 16) {
@@ -167,7 +160,7 @@ func (f *StreamFrame) calculateStreamIDLength() uint8 {
 	return 4
 }
 
-func (f *StreamFrame) getOffsetLength() protocol.ByteCount {
+func (f *DatagramFrame) getOffsetLength() protocol.ByteCount {
 	if f.Offset == 0 {
 		return 0
 	}
@@ -194,7 +187,7 @@ func (f *StreamFrame) getOffsetLength() protocol.ByteCount {
 
 // MinLength returns the length of the header of a StreamFrame
 // the total length of the StreamFrame is frame.MinLength() + frame.DataLen()
-func (f *StreamFrame) MinLength(protocol.VersionNumber) (protocol.ByteCount, error) {
+func (f *DatagramFrame) MinLength(protocol.VersionNumber) (protocol.ByteCount, error) {
 	length := protocol.ByteCount(1) + protocol.ByteCount(f.calculateStreamIDLength()) + f.getOffsetLength()
 	if f.DataLenPresent {
 		length += 2
@@ -203,6 +196,6 @@ func (f *StreamFrame) MinLength(protocol.VersionNumber) (protocol.ByteCount, err
 }
 
 // DataLen gives the length of data in bytes
-func (f *StreamFrame) DataLen() protocol.ByteCount {
+func (f *DatagramFrame) DataLen() protocol.ByteCount {
 	return protocol.ByteCount(len(f.Data))
 }

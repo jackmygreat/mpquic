@@ -20,6 +20,8 @@ type streamsMap struct {
 	// needed for round-robin scheduling
 	openStreams     []protocol.StreamID
 	roundRobinIndex uint32
+	// a table that marks if a stream is unreliable or not
+	unreliableStreamMark map[protocol.StreamID]bool
 
 	nextStream                protocol.StreamID // StreamID of the next Stream that will be returned by OpenStream()
 	highestStreamOpenedByPeer protocol.StreamID
@@ -46,6 +48,7 @@ func newStreamsMap(newStream newStreamLambda, pers protocol.Perspective, connect
 	sm := streamsMap{
 		perspective:          pers,
 		streams:              map[protocol.StreamID]*stream{},
+		unreliableStreamMark: map[protocol.StreamID]bool{},
 		openStreams:          make([]protocol.StreamID, 0),
 		newStream:            newStream,
 		connectionParameters: connectionParameters,
@@ -63,9 +66,23 @@ func newStreamsMap(newStream newStreamLambda, pers protocol.Perspective, connect
 
 	return &sm
 }
+// request this stream is reliable or unreliable
+func (m *streamsMap)GetStreasmType(id protocol.StreamID) (bool , error){
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
+	if _, ok := m.streams[id]; !ok {
+		return false, fmt.Errorf("a stream with ID %d already exists", id)
+	}
+	if val,ok := m.unreliableStreamMark[id];ok{
+		return val,nil
+	}else {
+		return false,nil
+	}
+}
 // GetOrOpenStream either returns an existing stream, a newly opened stream, or nil if a stream with the provided ID is already closed.
 // Newly opened streams should only originate from the client. To open a stream from the server, OpenStream should be used.
+// 是为了打开远端不属于自己发起的流
 func (m *streamsMap) GetOrOpenStream(id protocol.StreamID) (*stream, error) {
 	m.mutex.RLock()
 	s, ok := m.streams[id]
@@ -82,7 +99,9 @@ func (m *streamsMap) GetOrOpenStream(id protocol.StreamID) (*stream, error) {
 	if ok {
 		return s, nil
 	}
+	// 下面所有的情况说明了该流不存在
 
+	//下面的两个大的判断语句是在将那些自己侧发起的流和已经结束的流给排除掉
 	if m.perspective == protocol.PerspectiveServer {
 		if id%2 == 0 {
 			if id <= m.nextStream { // this is a server-side stream that we already opened. Must have been closed already
@@ -106,6 +125,8 @@ func (m *streamsMap) GetOrOpenStream(id protocol.StreamID) (*stream, error) {
 		}
 	}
 
+	// 走到下面的代码后，说明了所需要的流还没有打开，并且不是自己侧发起的流
+	// 还没有流打开的话，highestStreamOpenedByPeer一开始等于0，服务器的流计数从2开始，客户端的流计数从1开始
 	// sid is the next stream that will be opened
 	sid := m.highestStreamOpenedByPeer + 2
 	// if there is no stream opened yet, and this is the server, stream 1 should be openend
@@ -119,6 +140,70 @@ func (m *streamsMap) GetOrOpenStream(id protocol.StreamID) (*stream, error) {
 			return nil, err
 		}
 	}
+
+	m.nextStreamOrErrCond.Broadcast()
+	return m.streams[id], nil
+}
+// GetOrOpenStream either returns an existing stream, a newly opened stream, or nil if a stream with the provided ID is already closed.
+// Newly opened streams should only originate from the client. To open a stream from the server, OpenStream should be used.
+// 是为了打开远端不属于自己发起的流
+func (m *streamsMap) GetOrOpenStreamType(id protocol.StreamID, marker bool) (*stream, error) {
+	m.mutex.RLock()
+	s, ok := m.streams[id]
+	m.mutex.RUnlock()
+	if ok {
+		return s, nil // s may be nil
+	}
+
+	// ... we don't have an existing stream
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	// We need to check whether another invocation has already created a stream (between RUnlock() and Lock()).
+	s, ok = m.streams[id]
+	if ok {
+		return s, nil
+	}
+	// 下面所有的情况说明了该流不存在
+
+	//下面的两个大的判断语句是在将那些自己侧发起的流和已经结束的流给排除掉
+	if m.perspective == protocol.PerspectiveServer {
+		if id%2 == 0 {
+			if id <= m.nextStream { // this is a server-side stream that we already opened. Must have been closed already
+				return nil, nil
+			}
+			return nil, qerr.Error(qerr.InvalidStreamID, fmt.Sprintf("attempted to open stream %d from client-side", id))
+		}
+		if id <= m.highestStreamOpenedByPeer { // this is a client-side stream that doesn't exist anymore. Must have been closed already
+			return nil, nil
+		}
+	}
+	if m.perspective == protocol.PerspectiveClient {
+		if id%2 == 1 {
+			if id <= m.nextStream { // this is a client-side stream that we already opened.
+				return nil, nil
+			}
+			return nil, qerr.Error(qerr.InvalidStreamID, fmt.Sprintf("attempted to open stream %d from server-side", id))
+		}
+		if id <= m.highestStreamOpenedByPeer { // this is a server-side stream that doesn't exist anymore. Must have been closed already
+			return nil, nil
+		}
+	}
+
+	// 走到下面的代码后，说明了所需要的流还没有打开，并且不是自己侧发起的流
+	// 还没有流打开的话，highestStreamOpenedByPeer一开始等于0，服务器的流计数从2开始，客户端的流计数从1开始
+	// sid is the next stream that will be opened
+	sid := m.highestStreamOpenedByPeer + 2
+	// if there is no stream opened yet, and this is the server, stream 1 should be openend
+	if sid == 2 && m.perspective == protocol.PerspectiveServer {
+		sid = 1
+	}
+
+	// open a stream initiated by the peer and send the marker
+	_, err := m.openRemoteStreamType(sid,marker)
+	if err != nil {
+		return nil, err
+	}
+
 
 	m.nextStreamOrErrCond.Broadcast()
 	return m.streams[id], nil
@@ -146,7 +231,28 @@ func (m *streamsMap) openRemoteStream(id protocol.StreamID) (*stream, error) {
 	m.putStream(s)
 	return s, nil
 }
+func (m *streamsMap) openRemoteStreamType(id protocol.StreamID,marker bool) (*stream, error) {
+	if m.numIncomingStreams >= m.connectionParameters.GetMaxIncomingStreams() {
+		return nil, qerr.TooManyOpenStreams
+	}
+	if id+protocol.MaxNewStreamIDDelta < m.highestStreamOpenedByPeer {
+		return nil, qerr.Error(qerr.InvalidStreamID, fmt.Sprintf("attempted to open stream %d, which is a lot smaller than the highest opened stream, %d", id, m.highestStreamOpenedByPeer))
+	}
 
+	if m.perspective == protocol.PerspectiveServer {
+		m.numIncomingStreams++
+	} else {
+		m.numOutgoingStreams++
+	}
+
+	if id > m.highestStreamOpenedByPeer {
+		m.highestStreamOpenedByPeer = id
+	}
+
+	s := m.newStream(id)
+	m.putStreamType(s,marker)
+	return s, nil
+}
 func (m *streamsMap) openStreamImpl() (*stream, error) {
 	id := m.nextStream
 	if m.numOutgoingStreams >= m.connectionParameters.GetMaxOutgoingStreams() {
@@ -161,12 +267,29 @@ func (m *streamsMap) openStreamImpl() (*stream, error) {
 
 	m.nextStream += 2
 	s := m.newStream(id)
-	m.putStream(s)
+	m.putStreamType(s,false)
 	return s, nil
 }
 
+func (m *streamsMap) openUnreliableStreamImpl() (*stream, error) {
+	id := m.nextStream
+	if m.numOutgoingStreams >= m.connectionParameters.GetMaxOutgoingStreams() {
+		return nil, qerr.TooManyOpenStreams
+	}
+
+	if m.perspective == protocol.PerspectiveServer {
+		m.numOutgoingStreams++
+	} else {
+		m.numIncomingStreams++
+	}
+
+	m.nextStream += 2
+	s := m.newStream(id)//调用session当中的newStream方法
+	m.putStreamType(s,true)
+	return s, nil
+}
 // OpenStream opens the next available stream
-func (m *streamsMap) OpenStream() (*stream, error) {
+func (m *streamsMap) OpenStream() (*stream, error) { //发起新的stream
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -174,6 +297,16 @@ func (m *streamsMap) OpenStream() (*stream, error) {
 		return nil, m.closeErr
 	}
 	return m.openStreamImpl()
+}
+// mark: open an unreliable Stream
+func (m *streamsMap) OpenUnreliableStream()(*stream, error){//发起新的不可靠传输的stream
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	if m.closeErr != nil {
+		return nil, m.closeErr
+	}
+	return m.openUnreliableStreamImpl()
 }
 
 func (m *streamsMap) OpenStreamSync() (*stream, error) {
@@ -288,6 +421,19 @@ func (m *streamsMap) putStream(s *stream) error {
 
 	m.streams[id] = s
 	m.openStreams = append(m.openStreams, id)
+
+	return nil
+}
+// marker stands for the stream type: reliable stream(false) unrelaible stream(true)
+func (m *streamsMap) putStreamType(s *stream,marker bool) error {
+	id := s.StreamID()
+	if _, ok := m.streams[id]; ok {
+		return fmt.Errorf("a stream with ID %d already exists", id)
+	}
+
+	m.streams[id] = s
+	m.openStreams = append(m.openStreams, id)
+	m.unreliableStreamMark[id] = marker
 	return nil
 }
 

@@ -55,7 +55,7 @@ type stream struct {
 	rstSent        utils.AtomicBool
 	writeChan      chan struct{}
 	writeDeadline  time.Time
-
+	sess *session
 	flowControlManager flowcontrol.FlowControlManager
 }
 
@@ -86,7 +86,24 @@ func newStream(StreamID protocol.StreamID,
 	s.ctx, s.ctxCancel = context.WithCancel(context.Background())
 	return s
 }
-
+// newStream creates a new Stream
+func newStreamType(StreamID protocol.StreamID,
+	onData func(),
+	onReset func(protocol.StreamID, protocol.ByteCount),
+	flowControlManager flowcontrol.FlowControlManager, sess *session) *stream {
+	s := &stream{
+		onData:             onData,
+		onReset:            onReset,
+		streamID:           StreamID,
+		flowControlManager: flowControlManager,
+		frameQueue:         newStreamFrameSorter(),
+		readChan:           make(chan struct{}, 1),
+		writeChan:          make(chan struct{}, 1),
+		sess: sess,
+	}
+	s.ctx, s.ctxCancel = context.WithCancel(context.Background())
+	return s
+}
 // Read implements io.Reader. It is not thread safe!
 func (s *stream) Read(p []byte) (int, error) {
 	s.mutex.Lock()
@@ -103,7 +120,7 @@ func (s *stream) Read(p []byte) (int, error) {
 	for bytesRead < len(p) {
 		s.mutex.Lock()
 		frame := s.frameQueue.Head()
-		if frame == nil && bytesRead > 0 {
+		if frame == nil && bytesRead > 0 {//如果暂时没有数据的话
 			err = s.err
 			s.mutex.Unlock()
 			return bytesRead, err
@@ -353,7 +370,12 @@ func (s *stream) SetDeadline(t time.Time) error {
 
 // CloseRemote makes the stream receive a "virtual" FIN stream frame at a given offset
 func (s *stream) CloseRemote(offset protocol.ByteCount) {
-	s.AddStreamFrame(&wire.StreamFrame{FinBit: true, Offset: offset})
+	if val, ok := s.sess.streamsMap.unreliableStreamMark[s.streamID]; ok {
+		s.AddStreamFrame(&wire.StreamFrame{UnreliableMarker:val,FinBit: true, Offset: offset,})
+	}else{
+		s.AddStreamFrame(&wire.StreamFrame{FinBit: true, Offset: offset})
+	}
+
 }
 
 // Cancel is called by session to indicate that an error occurred

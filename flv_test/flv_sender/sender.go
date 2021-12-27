@@ -73,7 +73,7 @@ func pushflv(url, filename string) {
 	stream, err := sess.OpenStream()
 	HandleError(err)
 	defer stream.Close()
-	controlstream, err := sess.OpenStream()
+	controlstream, err := sess.OpenUnreliableStream()
 	HandleError(err)
 	defer controlstream.Close()
 
@@ -81,8 +81,9 @@ func pushflv(url, filename string) {
 		nazalog.Fatalf("read tags from flv file failed. err=%+v", err)
 	}
 	nazalog.Infof("read tags from flv file succ. len of tags=%d", len(tags))
-
+	now := time.Now()
 	loopPush(tags, stream,controlstream)
+	fmt.Println(time.Since(now))
 }
 func loopPush(tags []httpflv.Tag, stream quic.Stream,controlstream quic.Stream) {
 	var (
@@ -118,10 +119,12 @@ func loopPush(tags []httpflv.Tag, stream quic.Stream,controlstream quic.Stream) 
 						nazalog.Errorf("write data error. err=%v", err)
 						return
 					}
+
 					if _,err := stream.Write(tag.Raw[11:11+h.MsgLen]); err != nil {//传输数据
 						nazalog.Errorf("write data error. err=%v", err)
 						return
 					}
+					//fmt.Println(controlInfo,tag.Raw[11:11+h.MsgLen])
 				}
 				continue
 			}
@@ -178,7 +181,7 @@ func loopPush(tags []httpflv.Tag, stream quic.Stream,controlstream quic.Stream) 
 				nazalog.Errorf("write data error. err=%v", err)
 				return
 			}
-
+			//fmt.Println(controlInfo,tag.Raw[11:11+h.MsgLen])
 
 			prevTS = h.TimestampAbs
 		} // tags for loop

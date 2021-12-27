@@ -17,6 +17,13 @@ type receivedRawPacket struct {
 	data       []byte
 	rcvTime    time.Time
 }
+/*type receivedPacket struct {
+	remoteAddr   net.Addr
+	publicHeader *wire.PublicHeader
+	data         []byte
+	rcvTime      time.Time
+	rcvPconn     net.PacketConn
+}*/
 
 type pconnManager struct {
 	// Two kinds of PacketConn: on specific unicast address and the "master"

@@ -393,7 +393,7 @@ func (s *server) handlePacket(rcvRawPacket *receivedRawPacket) error {
 	session.handlePacket(&receivedPacket{
 		remoteAddr:   remoteAddr,
 		publicHeader: hdr,
-		data:         packet[len(packet)-r.Len():],
+		data:         packet[len(packet)-r.Len():],//将header排除之后的数据
 		rcvTime:      rcvTime,
 		rcvPconn:     pconn,
 	})

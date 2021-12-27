@@ -92,7 +92,7 @@ func pullflv(url, filename string) {
 		tag.Header = parseTagHeader(controlinfo[0:11])
 		tag.Raw = make([]byte, tag.Header.DataSize+15)
 		len2, err := io.ReadFull(videostream, tag.Raw[11:11+tag.Header.DataSize]) // recieve image
-
+		//fmt.Println(controlinfo,controlinfo2,tag.Raw[11:11+tag.Header.DataSize])
 		copy(tag.Raw[0:11],controlinfo[0:11])
 		copy(tag.Raw[tag.Header.DataSize+11:tag.Header.DataSize+15],controlinfo[11:15])
 		//sliceChan2<-buff

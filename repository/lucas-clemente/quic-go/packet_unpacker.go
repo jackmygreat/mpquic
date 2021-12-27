@@ -21,20 +21,23 @@ type quicAEAD interface {
 
 type packetUnpacker struct {
 	version protocol.VersionNumber
+	sess *session
+	cnt int
 	aead    quicAEAD
 }
 
 func (u *packetUnpacker) Unpack(publicHeaderBinary []byte, hdr *wire.PublicHeader, data []byte) (*unpackedPacket, error) {
+
 	buf := getPacketBuffer()
 	defer putPacketBuffer(buf)
-	decrypted, encryptionLevel, err := u.aead.Open(buf, data, hdr.PacketNumber, publicHeaderBinary)
+	decrypted, encryptionLevel, err := u.aead.Open(buf, data, hdr.PacketNumber, publicHeaderBinary)//返回解密之后的数据和加密级别
 	if err != nil {
 		// Wrap err in quicError so that public reset is sent by session
 		return nil, qerr.Error(qerr.DecryptionFailure, err.Error())
 	}
-	r := bytes.NewReader(decrypted)
+	r := bytes.NewReader(decrypted)//拿到数据
 
-	if r.Len() == 0 {
+	if r.Len() == 0 {//如果数据长度为0的话，就需要报错
 		return nil, qerr.MissingPayload
 	}
 
@@ -42,15 +45,18 @@ func (u *packetUnpacker) Unpack(publicHeaderBinary []byte, hdr *wire.PublicHeade
 
 	// Read all frames in the packet
 	for r.Len() > 0 {
-		typeByte, _ := r.ReadByte()
-		if typeByte == 0x0 { // PADDING frame
+		typeByte, _ := r.ReadByte()//读取一个字节，也就是type字段
+		if typeByte == 0x0 { // PADDING frame，如果type字段为0的话，那么就是paddingFrame,跳过本轮循环
 			continue
 		}
 		r.UnreadByte()
 
 		var frame wire.Frame
-		if typeByte&0x80 == 0x80 {
+		// 当首位为1的时候，就是streamFrame,如果次高位和最高位都为1，那么就可以判断为unreliable类型
+		if typeByte&0x80 == 0x80 {//0x80代表了Frame类型为streamFrame,在log中typeByte一共输出国两种值：140（10001100）｜136(10001000),
+
 			frame, err = wire.ParseStreamFrame(r, u.version)
+
 			if err != nil {
 				err = qerr.Error(qerr.InvalidStreamData, err.Error())
 			} else {
@@ -58,13 +64,19 @@ func (u *packetUnpacker) Unpack(publicHeaderBinary []byte, hdr *wire.PublicHeade
 				if streamID != 1 && encryptionLevel <= protocol.EncryptionUnencrypted {
 					err = qerr.Error(qerr.UnencryptedStreamData, fmt.Sprintf("received unencrypted stream data on stream %d", streamID))
 				}
+				if typeByte&0x01 == 0x01{//在此种情况证明了该stream类型为unreliable的
+					//fmt.Println(11)
+					u.sess.streamsMap.unreliableStreamMark[streamID] = true
+				}
 			}
-		} else if typeByte&0xc0 == 0x40 {
+
+		} else if typeByte&0xc0 == 0x40 {//次高位为1代表了ackFrame类型,01000101,01000100,01000000,01001001
+
 			frame, err = wire.ParseAckFrame(r, u.version)
 			if err != nil {
 				err = qerr.Error(qerr.InvalidAckData, err.Error())
 			}
-		} else if typeByte&0xe0 == 0x20 {
+		} else if typeByte&0xe0 == 0x20 {// 1110,第三位为1的时候全部是还未实现的一种帧类型
 			err = errors.New("unimplemented: CONGESTION_FEEDBACK")
 		} else {
 			switch typeByte {

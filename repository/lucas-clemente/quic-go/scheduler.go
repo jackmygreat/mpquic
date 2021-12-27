@@ -12,6 +12,8 @@ import (
 type scheduler struct {
 	// XXX Currently round-robin based, inspired from MPTCP scheduler
 	quotas map[protocol.PathID]uint
+	sess      *session
+
 }
 
 func (sch *scheduler) setup() {
@@ -49,9 +51,15 @@ func (sch *scheduler) getRetransmission(s *session) (hasRetransmission bool, ret
 		utils.Debugf("\tDequeueing retransmission of packet 0x%x from path %d", retransmitPacket.PacketNumber, pth.pathID)
 		// resend the frames that were in the packet
 		for _, frame := range retransmitPacket.GetFramesForRetransmission() {
+
 			switch f := frame.(type) {
 			case *wire.StreamFrame:
-				s.streamFramer.AddFrameForRetransmission(f)
+				if ok,_ := sch.sess.streamsMap.GetStreasmType(f.StreamID);ok {
+						//不可靠传输的逻辑,直接什么也不做，放弃重传是否可行？
+					//s.streamFramer.AddFrameForRetransmission(f)
+				}else {
+					s.streamFramer.AddFrameForRetransmission(f)
+				}
 			case *wire.WindowUpdateFrame:
 				// only retransmit WindowUpdates if the stream is not yet closed and the we haven't sent another WindowUpdate with a higher ByteOffset for the stream
 				// XXX Should it be adapted to multiple paths?

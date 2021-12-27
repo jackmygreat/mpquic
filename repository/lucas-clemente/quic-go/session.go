@@ -209,7 +209,7 @@ func (s *session) setup(
 		s.config.IdleTimeout,
 	)
 
-	s.scheduler = &scheduler{}
+	s.scheduler = &scheduler{sess: s}
 	s.scheduler.setup()
 
 	if pconnMgr == nil && conn != nil {
@@ -298,7 +298,7 @@ func (s *session) setup(
 		s.perspective,
 		s.version,
 	)
-	s.unpacker = &packetUnpacker{aead: s.cryptoSetup, version: s.version}
+	s.unpacker = &packetUnpacker{aead: s.cryptoSetup, version: s.version, sess: s}
 
 	return s, handshakeChan, nil
 }
@@ -579,6 +579,7 @@ func (s *session) handlePacket(p *receivedPacket) {
 
 func (s *session) handleStreamFrame(frame *wire.StreamFrame) error {
 	str, err := s.streamsMap.GetOrOpenStream(frame.StreamID)
+
 	if err != nil {
 		return err
 	}
@@ -848,6 +849,10 @@ func (s *session) AcceptStream() (Stream, error) {
 func (s *session) OpenStream() (Stream, error) {
 	return s.streamsMap.OpenStream()
 }
+// this function opens an unreliableStream
+func (s *session) OpenUnreliableStream()(Stream, error){
+	return s.streamsMap.OpenUnreliableStream()
+}
 
 func (s *session) OpenStreamSync() (Stream, error) {
 	return s.streamsMap.OpenStreamSync()
@@ -864,7 +869,7 @@ func (s *session) queueResetStreamFrame(id protocol.StreamID, offset protocol.By
 	}, s.paths[protocol.InitialPathID])
 	s.scheduleSending()
 }
-
+// 这里应该需要一个marker，来表示是创建可靠的流还是不可靠的流
 func (s *session) newStream(id protocol.StreamID) *stream {
 	// TODO: find a better solution for determining which streams contribute to connection level flow control
 	if id == 1 || id == 3 {
@@ -872,7 +877,7 @@ func (s *session) newStream(id protocol.StreamID) *stream {
 	} else {
 		s.flowControlManager.NewStream(id, true)
 	}
-	return newStream(id, s.scheduleSending, s.queueResetStreamFrame, s.flowControlManager)
+	return newStreamType(id, s.scheduleSending, s.queueResetStreamFrame, s.flowControlManager,s)
 }
 
 // garbageCollectStreams goes through all streams and removes EOF'ed streams
