@@ -101,15 +101,18 @@ func newStreamType(StreamID protocol.StreamID,
 		writeChan:          make(chan struct{}, 1),
 		sess: sess,
 	}
+	s.frameQueue.sess = sess
+	s.frameQueue.SID = StreamID
+	s.frameQueue.unreliableMarker = s.frameQueue.sess.streamsMap.unreliableStreamMark[StreamID]
 	s.ctx, s.ctxCancel = context.WithCancel(context.Background())
 	return s
 }
 // Read implements io.Reader. It is not thread safe!
-func (s *stream) Read(p []byte) (int, error) {
+func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]byte当中
 	s.mutex.Lock()
 	err := s.err
 	s.mutex.Unlock()
-	if s.cancelled.Get() || s.resetLocally.Get() {
+	if s.cancelled.Get() || s.resetLocally.Get() {//如果该流被重置了，或者是被关闭了，那么该流就返回零
 		return 0, err
 	}
 	if s.finishedReading.Get() {
@@ -119,7 +122,7 @@ func (s *stream) Read(p []byte) (int, error) {
 	bytesRead := 0
 	for bytesRead < len(p) {
 		s.mutex.Lock()
-		frame := s.frameQueue.Head()
+		frame := s.frameQueue.Head()//从frameQueue.Head()拿数据
 		if frame == nil && bytesRead > 0 {//如果暂时没有数据的话
 			err = s.err
 			s.mutex.Unlock()
@@ -135,27 +138,28 @@ func (s *stream) Read(p []byte) (int, error) {
 			}
 
 			deadline := s.readDeadline
-			if !deadline.IsZero() && !time.Now().Before(deadline) {
-				err = errDeadline
+			if !deadline.IsZero() && !time.Now().Before(deadline) {//如果已经超时的话
+				err = errDeadline//会返回超时错误
 				break
 			}
 
 			if frame != nil {
+				//readOffset代表了现在读取到的偏移量，frame.offset 代表了该帧的偏移量，因此readPosInFrame代表了在该帧内以帧首为0，读取到的偏移量
 				s.readPosInFrame = int(s.readOffset - frame.Offset)
 				break
 			}
 
 			s.mutex.Unlock()
 			if deadline.IsZero() {
-				<-s.readChan
+				<-s.readChan//一旦放入了一个frame就会通知,但是就算放入了一个frame，这个frame也不再前面，可能造成frame = s.frameQueue.Head()拿到的是nil
 			} else {
 				select {
 				case <-s.readChan:
-				case <-time.After(deadline.Sub(time.Now())):
+				case <-time.After(deadline.Sub(time.Now()))://超时的话
 				}
 			}
 			s.mutex.Lock()
-			frame = s.frameQueue.Head()
+			frame = s.frameQueue.Head()//这个函数并不会消耗frameQueue的frame数量
 		}
 		s.mutex.Unlock()
 
@@ -163,7 +167,7 @@ func (s *stream) Read(p []byte) (int, error) {
 			return bytesRead, err
 		}
 
-		m := utils.Min(len(p)-bytesRead, int(frame.DataLen())-s.readPosInFrame)
+		m := utils.Min(len(p)-bytesRead, int(frame.DataLen())-s.readPosInFrame)//第一个是缓存还有多大空间要读，第二个是指本帧内还能提供多大的内容供读取
 
 		if bytesRead > len(p) {
 			return bytesRead, fmt.Errorf("BUG: bytesRead (%d) > len(p) (%d) in stream.Read", bytesRead, len(p))
@@ -171,7 +175,7 @@ func (s *stream) Read(p []byte) (int, error) {
 		if s.readPosInFrame > int(frame.DataLen()) {
 			return bytesRead, fmt.Errorf("BUG: readPosInFrame (%d) > frame.DataLen (%d) in stream.Read", s.readPosInFrame, frame.DataLen())
 		}
-		copy(p[bytesRead:], frame.Data[s.readPosInFrame:])
+		copy(p[bytesRead:], frame.Data[s.readPosInFrame:])//复制内容
 
 		s.readPosInFrame += m
 		bytesRead += m
@@ -183,10 +187,10 @@ func (s *stream) Read(p []byte) (int, error) {
 		}
 		s.onData() // so that a possible WINDOW_UPDATE is sent
 
-		if s.readPosInFrame >= int(frame.DataLen()) {
+		if s.readPosInFrame >= int(frame.DataLen()) {//怎么可能大于？？？
 			fin := frame.FinBit
 			s.mutex.Lock()
-			s.frameQueue.Pop()
+			s.frameQueue.Pop()//只有该帧内的内容被读取完了才会调用该函数
 			s.mutex.Unlock()
 			if fin {
 				s.finishedReading.Set(true)

@@ -70,10 +70,10 @@ func pushflv(url, filename string) {
 	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
 	HandleError(err)
 
-	stream, err := sess.OpenStream()
+	stream, err := sess.OpenUnreliableStream()
 	HandleError(err)
 	defer stream.Close()
-	controlstream, err := sess.OpenUnreliableStream()
+	controlstream, err := sess.OpenStream()
 	HandleError(err)
 	defer controlstream.Close()
 
@@ -84,6 +84,7 @@ func pushflv(url, filename string) {
 	now := time.Now()
 	loopPush(tags, stream,controlstream)
 	fmt.Println(time.Since(now))
+	time.Sleep(time.Second*2)
 }
 func loopPush(tags []httpflv.Tag, stream quic.Stream,controlstream quic.Stream) {
 	var (

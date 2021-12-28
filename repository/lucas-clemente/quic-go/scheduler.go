@@ -1,6 +1,7 @@
 package quic
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/ackhandler"
@@ -55,7 +56,8 @@ func (sch *scheduler) getRetransmission(s *session) (hasRetransmission bool, ret
 			switch f := frame.(type) {
 			case *wire.StreamFrame:
 				if ok,_ := sch.sess.streamsMap.GetStreasmType(f.StreamID);ok {
-						//不可靠传输的逻辑,直接什么也不做，放弃重传是否可行？
+						//不可靠传输的逻辑,直接什么也不做，放弃重传是否可行？，应该是不可以的，接收方的逻辑应该改变一下，一旦ack之后，那些确实的Frame应该不再管了
+					fmt.Println("存在丢包")
 					//s.streamFramer.AddFrameForRetransmission(f)
 				}else {
 					s.streamFramer.AddFrameForRetransmission(f)
