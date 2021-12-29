@@ -70,12 +70,14 @@ func pushflv(url, filename string) {
 	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
 	HandleError(err)
 
-	stream, err := sess.OpenUnreliableStream()
-	HandleError(err)
-	defer stream.Close()
 	controlstream, err := sess.OpenStream()
 	HandleError(err)
 	defer controlstream.Close()
+
+	stream, err := sess.OpenUnreliableStream()
+	HandleError(err)
+	defer stream.Close()
+
 
 	if err != nil || len(tags) == 0 {
 		nazalog.Fatalf("read tags from flv file failed. err=%+v", err)
@@ -121,7 +123,7 @@ func loopPush(tags []httpflv.Tag, stream quic.Stream,controlstream quic.Stream) 
 						return
 					}
 
-					if _,err := stream.Write(tag.Raw[11:11+h.MsgLen]); err != nil {//传输数据
+					if _,err := controlstream.Write(tag.Raw[11:11+h.MsgLen]); err != nil {//传输数据
 						nazalog.Errorf("write data error. err=%v", err)
 						return
 					}
@@ -171,14 +173,14 @@ func loopPush(tags []httpflv.Tag, stream quic.Stream,controlstream quic.Stream) 
 				firstTagTS = h.TimestampAbs
 				hasTraceFirstTagTS = true
 			}
-			controlInfo := make([]byte,11+4) //控制信息
-			_ = copy(controlInfo[11:15],tag.Raw[h.MsgLen+11:]) // 控制信息+previousTag（4字节）
-			_ = copy(controlInfo[0:11],tag.Raw[0:11])
+			controlInfo := make([]byte,11+1+4) //控制信息
+			_ = copy(controlInfo[12:16],tag.Raw[h.MsgLen+11:]) // 控制信息+previousTag（4字节）
+			_ = copy(controlInfo[0:12],tag.Raw[0:12])
 			if _,err := controlstream.Write(controlInfo); err != nil {
 				nazalog.Errorf("write data error. err=%v", err)
 				return
 			}
-			if _,err := stream.Write(tag.Raw[11:11+h.MsgLen]); err != nil {//传输数据
+			if _,err := stream.Write(tag.Raw[12:12+h.MsgLen-1]); err != nil {//传输数据
 				nazalog.Errorf("write data error. err=%v", err)
 				return
 			}

@@ -2,8 +2,6 @@ package quic
 
 import (
 	"errors"
-	"fmt"
-
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/protocol"
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/utils"
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/wire"
@@ -164,19 +162,22 @@ func (s *streamFrameSorter) Head() *wire.StreamFrame {
 		if len(s.queuedFrames)==0{
 			return nil
 		}
-		fmt.Println("存在丢包")
+
 		elem := s.gaps.Front()//拿到第一个gap
+		var res *wire.StreamFrame
 		var dataPadding []byte//填充的空白数据
 		if elem.Value.Start-elem.Value.End+1<100{
 			dataPadding = make([]byte,elem.Value.Start-elem.Value.End+1)
-			s.gaps.Remove(elem)
+			res = &wire.StreamFrame{Offset: elem.Value.Start,Data: dataPadding}
+			s.Push(res)
 		}else {
-			dataPadding = make([]byte,100)
-			elem.Value.Start +=100//调整gaps
+			dataPadding = make([]byte,100,100)
+			res = &wire.StreamFrame{Offset: elem.Value.Start,Data: dataPadding}
+			s.Push(res)
 		}
-		res := &wire.StreamFrame{Offset: elem.Value.Start,Data: dataPadding}
-		s.queuedFrames[s.readPosition] = res
-		return res
+
+
+		return s.queuedFrames[s.readPosition]
 	}
 	return nil
 }

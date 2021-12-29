@@ -70,12 +70,25 @@ func pullflv(url, filename string) {
 	sess, err := quic.DialAddr(url, &tls.Config{InsecureSkipVerify: true}, quicConfig)
 	HandleError(err)
 
-	videostream, err := sess.AcceptStream()
-	HandleError(err)
 	controlstream, err := sess.AcceptStream()
 	HandleError(err)
+	videostream, err := sess.AcceptStream()
+	HandleError(err)
+	//第一块为了接收metaTag
+	metacontrolinfo := make([]byte,11+4)
+	_, err2 := io.ReadFull(controlstream, metacontrolinfo) //recieve the size
+	HandleError(err2)
+	metatag := httpflv.Tag{}
+	metatag.Header = parseTagHeader(metacontrolinfo[0:11])
+	metatag.Raw = make([]byte, metatag.Header.DataSize+15)
+	copy(metatag.Raw[0:11],metacontrolinfo[0:11])
+	_, err3 := io.ReadFull(controlstream, metatag.Raw[11:11+metatag.Header.DataSize])
+	HandleError(err3)
+	copy(metatag.Raw[metatag.Header.DataSize+11:metatag.Header.DataSize+15],metacontrolinfo[11:15])
+	w.WriteTag(metatag)
+
 	for {
-		controlinfo := make([]byte,11+4)
+		controlinfo := make([]byte,11+1+4)
 		str := string(controlinfo[0:3])
 		if str == "fin"{
 			break
@@ -91,10 +104,10 @@ func pullflv(url, filename string) {
 		//sliceChan<-siz
 		tag.Header = parseTagHeader(controlinfo[0:11])
 		tag.Raw = make([]byte, tag.Header.DataSize+15)
-		len2, err := io.ReadFull(videostream, tag.Raw[11:11+tag.Header.DataSize]) // recieve image
+		len2, err := io.ReadFull(videostream, tag.Raw[12:12+tag.Header.DataSize-1]) // recieve image
 		//fmt.Println(controlinfo,controlinfo2,tag.Raw[11:11+tag.Header.DataSize])
-		copy(tag.Raw[0:11],controlinfo[0:11])
-		copy(tag.Raw[tag.Header.DataSize+11:tag.Header.DataSize+15],controlinfo[11:15])
+		copy(tag.Raw[0:12],controlinfo[0:12])
+		copy(tag.Raw[tag.Header.DataSize+11:tag.Header.DataSize+15],controlinfo[12:16])
 		//sliceChan2<-buff
 		HandleError(err)
 

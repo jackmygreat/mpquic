@@ -175,6 +175,8 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 		if s.readPosInFrame > int(frame.DataLen()) {
 			return bytesRead, fmt.Errorf("BUG: readPosInFrame (%d) > frame.DataLen (%d) in stream.Read", s.readPosInFrame, frame.DataLen())
 		}
+
+
 		copy(p[bytesRead:], frame.Data[s.readPosInFrame:])//复制内容
 
 		s.readPosInFrame += m
