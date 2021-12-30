@@ -26,7 +26,7 @@ func ParseCommandLine() {
 	flag.StringVar(&FilePath, "f", " ", "-f file.flv")
 	flag.Parse()
 }
-const quicServerAddr = "120.26.8.97:5252"
+const quicServerAddr = "127.0.0.1:5252"
 
 var elapsed time.Duration
 var size int64
@@ -53,11 +53,14 @@ func main() {
 	}
 	pullflv(quicServerAddr,FilePath)
 }
+
+
 func pullflv(url, filename string) {
 	var (
 		w   httpflv.FLVFileWriter
 		err error
 	)
+
 	err = w.Open(filename)
 	nazalog.Assert(nil, err)
 	defer w.Dispose()
@@ -70,54 +73,72 @@ func pullflv(url, filename string) {
 	sess, err := quic.DialAddr(url, &tls.Config{InsecureSkipVerify: true}, quicConfig)
 	HandleError(err)
 
+	//---------------------------------------------
+	//打开三个流：key帧流、控制流、pb流
 	controlstream, err := sess.AcceptStream()
+	defer controlstream.Close()
+	HandleError(err)
+	keystream, err := sess.AcceptStream()
+	defer keystream.Close()
 	HandleError(err)
 	videostream, err := sess.AcceptStream()
+	defer videostream.Close()
 	HandleError(err)
+	//----------------------------------------------
+
+	//---------------------------------------------
 	//第一块为了接收metaTag
 	metacontrolinfo := make([]byte,11+4)
+
 	_, err2 := io.ReadFull(controlstream, metacontrolinfo) //recieve the size
 	HandleError(err2)
 	metatag := httpflv.Tag{}
 	metatag.Header = parseTagHeader(metacontrolinfo[0:11])
 	metatag.Raw = make([]byte, metatag.Header.DataSize+15)
 	copy(metatag.Raw[0:11],metacontrolinfo[0:11])
+
 	_, err3 := io.ReadFull(controlstream, metatag.Raw[11:11+metatag.Header.DataSize])
 	HandleError(err3)
 	copy(metatag.Raw[metatag.Header.DataSize+11:metatag.Header.DataSize+15],metacontrolinfo[11:15])
 	w.WriteTag(metatag)
+	//----------------------------------------------
+
 	preTagTS := uint32(0)
 	for {
-		controlinfo := make([]byte,11+1+4)
+		controlinfo := make([]byte,20)//一个tagHeader 一个pretagsize videotagdata:前5个字节
+
+		_, err := io.ReadFull(controlstream, controlinfo) // recieve the size
 		str := string(controlinfo[0:3])
 		if str == "fin"{
 			break
 		}
-		_, err := io.ReadFull(controlstream, controlinfo) //recieve the size
 		HandleError(err)
+
 		tag := httpflv.Tag{}
-		tag.Header = parseTagHeader(controlinfo[0:11])
+		tag.Header = parseTagHeader(controlinfo[0:11])   // 解析tagHeader
 
+		tag.Raw = make([]byte, tag.Header.DataSize+15)  //  原始数据
+		copy(tag.Raw[0:16],controlinfo[0:16])
+		copy(tag.Raw[tag.Header.DataSize+11:tag.Header.DataSize+15],controlinfo[16:20])
+		//判断该帧类型是keyFrame或者是其他的Frame类型
+		if tag.Header.Type == httpflv.TagTypeVideo && tag.Raw[httpflv.TagHeaderSize]==httpflv.AVCKeyFrame{
+			// keyFrame，使用可靠流传输
 
+			io.ReadFull(keystream,tag.Raw[16:11+tag.Header.DataSize])
+			fmt.Println("key:",len(tag.Raw))
+		}else{
+			// 非keyFrame，使用非可靠流传输
 
-		tag.Raw = make([]byte, tag.Header.DataSize+15)
-		len2, err := io.ReadFull(videostream, tag.Raw[12:12+tag.Header.DataSize-1]) // recieve image
+			io.ReadFull(videostream,tag.Raw[16:11+tag.Header.DataSize])
+			fmt.Println("nonekey:",len(tag.Raw))
+		}
 		dura := time.Duration(tag.Header.Timestamp-preTagTS)*time.Millisecond
 		preTagTS = tag.Header.Timestamp
 		time.Sleep(dura)
 		fmt.Println(dura)
-		copy(tag.Raw[0:12],controlinfo[0:12])
-		copy(tag.Raw[tag.Header.DataSize+11:tag.Header.DataSize+15],controlinfo[12:16])
-		//sliceChan2<-buff
-		HandleError(err)
 
-		//if empty buffer
-		if len2 == 0 {
-			defer videostream.Close()
-			defer controlstream.Close()
-			return
-		}
 		w.WriteTag(tag)
+
 	}
 
 
@@ -145,6 +166,7 @@ func generateTLSConfig() *tls.Config {
 	}
 	return &tls.Config{Certificates: []tls.Certificate{tlsCert}}
 }
+
 func parseTagHeader(rawHeader []byte) httpflv.TagHeader {
 	var h httpflv.TagHeader
 	h.Type = rawHeader[0]

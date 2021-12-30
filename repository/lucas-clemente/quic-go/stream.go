@@ -123,7 +123,7 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 	for bytesRead < len(p) {
 		s.mutex.Lock()
 		frame := s.frameQueue.Head()//从frameQueue.Head()拿数据
-		if frame == nil && bytesRead > 0 {//如果暂时没有数据的话
+		if frame == nil && bytesRead > 0 {//如果暂时没有可用的帧的话，且已经读取到了部分的数据
 			err = s.err
 			s.mutex.Unlock()
 			return bytesRead, err
@@ -151,7 +151,7 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 
 			s.mutex.Unlock()
 			if deadline.IsZero() {
-				<-s.readChan//一旦放入了一个frame就会通知,但是就算放入了一个frame，这个frame也不再前面，可能造成frame = s.frameQueue.Head()拿到的是nil
+				<-s.readChan//一旦放入了一个frame就会通知,但是就算放入了一个frame，这个frame也可能不在前面，可能造成frame = s.frameQueue.Head()拿到的是nil
 			} else {
 				select {
 				case <-s.readChan:
@@ -189,7 +189,7 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 		}
 		s.onData() // so that a possible WINDOW_UPDATE is sent
 
-		if s.readPosInFrame >= int(frame.DataLen()) {//怎么可能大于？？？
+		if s.readPosInFrame >= int(frame.DataLen()) {//怎么可能大于？？？,应该是等于吧？也就是本帧读完
 			fin := frame.FinBit
 			s.mutex.Lock()
 			s.frameQueue.Pop()//只有该帧内的内容被读取完了才会调用该函数
@@ -203,7 +203,12 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 
 	return bytesRead, nil
 }
-
+// func (s *session) scheduleSending() {
+//	select {
+//	case s.sendingScheduled <- struct{}{}:
+//	default:
+//	}
+// }
 func (s *stream) Write(p []byte) (int, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -224,18 +229,18 @@ func (s *stream) Write(p []byte) (int, error) {
 
 	var err error
 	for {
-		deadline := s.writeDeadline
-		if !deadline.IsZero() && !time.Now().Before(deadline) {
+		deadline := s.writeDeadline//一般这个是为0的
+		if !deadline.IsZero() && !time.Now().Before(deadline) {//如果deadline不是0，且已经超时的话
 			err = errDeadline
 			break
 		}
-		if s.dataForWriting == nil || s.err != nil {
+		if s.dataForWriting == nil || s.err != nil {//此时证明缓冲区已经被发送完毕了，因此可以退出for循环了
 			break
 		}
 
 		s.mutex.Unlock()
 		if deadline.IsZero() {
-			<-s.writeChan
+			<-s.writeChan//一旦有人从缓冲区中拿数据，都会通过该管道通知的
 		} else {
 			select {
 			case <-s.writeChan:
@@ -248,8 +253,8 @@ func (s *stream) Write(p []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	if s.err != nil {
-		return len(p) - len(s.dataForWriting), s.err
+	if s.err != nil {//如果报错的话
+		return len(p) - len(s.dataForWriting), s.err//返回发出的报文字节数和错误的原因
 	}
 	return len(p), nil
 }
@@ -263,7 +268,7 @@ func (s *stream) lenOfDataForWriting() protocol.ByteCount {
 	s.mutex.Unlock()
 	return l
 }
-
+// 某一个接口会通过这个拿到数据
 func (s *stream) getDataForWriting(maxBytes protocol.ByteCount) []byte {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -273,7 +278,7 @@ func (s *stream) getDataForWriting(maxBytes protocol.ByteCount) []byte {
 	}
 
 	var ret []byte
-	if protocol.ByteCount(len(s.dataForWriting)) > maxBytes {
+	if protocol.ByteCount(len(s.dataForWriting)) > maxBytes {//如果缓冲区当中的数据大于所需要的话，那么久拿到所需要的数据
 		ret = s.dataForWriting[:maxBytes]
 		s.dataForWriting = s.dataForWriting[maxBytes:]
 	} else {
@@ -312,6 +317,7 @@ func (s *stream) sentFin() {
 }
 
 // AddStreamFrame adds a new stream frame
+// 添加一个stream frame
 func (s *stream) AddStreamFrame(frame *wire.StreamFrame) error {
 	maxOffset := frame.Offset + frame.DataLen()
 	err := s.flowControlManager.UpdateHighestReceived(s.streamID, maxOffset)

@@ -11,19 +11,19 @@ import (
 var errInvalidPacketNumber = errors.New("ReceivedPacketHandler: Invalid packet number")
 
 type receivedPacketHandler struct {
-	largestObserved             protocol.PacketNumber
-	lowerLimit                  protocol.PacketNumber
+	largestObserved             protocol.PacketNumber //接收到的最大的
+	lowerLimit                  protocol.PacketNumber //用来限制最小报文序号
 	largestObservedReceivedTime time.Time
 
 	packetHistory *receivedPacketHistory
 
-	ackSendDelay time.Duration
+	ackSendDelay time.Duration //从接收报文到ack发送之间所经历的延迟
 
 	packetsReceivedSinceLastAck                int
 	retransmittablePacketsReceivedSinceLastAck int
-	ackQueued                                  bool
-	ackAlarm                                   time.Time
-	lastAck                                    *wire.AckFrame
+	ackQueued                                  bool //当这个字段为true的时候，证明已经满足发送ackFrame的条件了
+	ackAlarm                                   time.Time //这个字段的意思是在队列当中的报文序号不足以ack,但是超过了该时间，仍然需要发送ack
+	lastAck                                    *wire.AckFrame // 上一次确认过的数据包的范围的历史数据
 
 	version protocol.VersionNumber
 
@@ -39,7 +39,7 @@ func NewReceivedPacketHandler(version protocol.VersionNumber) ReceivedPacketHand
 	}
 }
 
-func (h *receivedPacketHandler) GetStatistics() uint64 {
+func (h *receivedPacketHandler) GetStatistics() uint64 {// 已经发送的报文的总数
 	return h.packets
 }
 
@@ -51,7 +51,7 @@ func (h *receivedPacketHandler) ReceivedPacket(packetNumber protocol.PacketNumbe
 	// A new packet was received on that path and passes checks, so count it for stats
 	h.packets++
 
-	if packetNumber > h.largestObserved {
+	if packetNumber > h.largestObserved {// 更新一下收到的最大序号和接收时间
 		h.largestObserved = packetNumber
 		h.largestObservedReceivedTime = time.Now()
 	}
@@ -60,7 +60,7 @@ func (h *receivedPacketHandler) ReceivedPacket(packetNumber protocol.PacketNumbe
 		return nil
 	}
 
-	if err := h.packetHistory.ReceivedPacket(packetNumber); err != nil {
+	if err := h.packetHistory.ReceivedPacket(packetNumber); err != nil {//接收报文序列号的历史轨迹数据,将该报文序号添加到其中
 		return err
 	}
 	h.maybeQueueAck(packetNumber, shouldInstigateAck)
@@ -75,9 +75,10 @@ func (h *receivedPacketHandler) SetLowerLimit(p protocol.PacketNumber) {
 }
 
 func (h *receivedPacketHandler) maybeQueueAck(packetNumber protocol.PacketNumber, shouldInstigateAck bool) {
+	// 自上一次ack之后再次收到的报文数量
 	h.packetsReceivedSinceLastAck++
 
-	if shouldInstigateAck {
+	if shouldInstigateAck {//如果是可重传报文的话，自上一次ack自后，需要发送ack的报文接收数量
 		h.retransmittablePacketsReceivedSinceLastAck++
 	}
 
@@ -122,13 +123,13 @@ func (h *receivedPacketHandler) maybeQueueAck(packetNumber protocol.PacketNumber
 	}
 }
 
-func (h *receivedPacketHandler) GetAckFrame() *wire.AckFrame {
+func (h *receivedPacketHandler) GetAckFrame() *wire.AckFrame {//这个要做工作嘛？？？
 	if !h.ackQueued && (h.ackAlarm.IsZero() || h.ackAlarm.After(time.Now())) {
 		return nil
 	}
 
 	ackRanges := h.packetHistory.GetAckRanges()
-	ack := &wire.AckFrame{
+	ack := &wire.AckFrame{//
 		LargestAcked:       h.largestObserved,
 		LowestAcked:        ackRanges[len(ackRanges)-1].First,
 		PacketReceivedTime: h.largestObservedReceivedTime,

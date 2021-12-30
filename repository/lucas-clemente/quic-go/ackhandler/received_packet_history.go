@@ -112,7 +112,7 @@ func (h *receivedPacketHistory) GetHighestAckRange() wire.AckRange {
 	if h.ranges.Len() > 0 {
 		r := h.ranges.Back().Value
 		ackRange.First = r.Start
-		ackRange.Last = r.End
+		ackRange.Last = r.End //大值
 	}
 	return ackRange
 }

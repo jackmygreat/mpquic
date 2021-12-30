@@ -198,7 +198,7 @@ func (p *path) handlePacketImpl(pkt *receivedPacket) error {
 		hdr.PacketNumber,
 	)
 
-	packet, err := p.sess.unpacker.Unpack(hdr.Raw, hdr, data)//传入了header的原始数据、header结构体和报文的payload数据
+	packet, err := p.sess.unpacker.Unpack(hdr.Raw, hdr, data)//传入了header的原始数据、header结构体和报文的payload数据。得到了解密过后的报文
 	if utils.Debug() {
 		if err != nil {
 			utils.Debugf("<- Reading packet 0x%x (%d bytes) for connection %x on path %x", hdr.PacketNumber, len(data)+len(hdr.Raw), hdr.ConnectionID, p.pathID)
@@ -220,12 +220,13 @@ func (p *path) handlePacketImpl(pkt *receivedPacket) error {
 		return err
 	}
 
-	p.lastRcvdPacketNumber = hdr.PacketNumber
-	// Only do this after decrupting, so we are sure the packet is not attacker-controlled
+	p.lastRcvdPacketNumber = hdr.PacketNumber//该路径上上一次收到的报文序号
+	// Only do this after decrypting, so we are sure the packet is not attacker-controlled
+	// 这条路径上收到的最大报文序号
 	p.largestRcvdPacketNumber = utils.MaxPacketNumber(p.largestRcvdPacketNumber, hdr.PacketNumber)
 
-	isRetransmittable := ackhandler.HasRetransmittableFrames(packet.frames)
-	if err = p.receivedPacketHandler.ReceivedPacket(hdr.PacketNumber, isRetransmittable); err != nil {
+	isRetransmittable := ackhandler.HasRetransmittableFrames(packet.frames)//如果存在streamFrame的话，那就是可重传的报文
+	if err = p.receivedPacketHandler.ReceivedPacket(hdr.PacketNumber, isRetransmittable); err != nil {// isRetransmittable代表了是否需要重传，是否需要ack
 		return err
 	}
 

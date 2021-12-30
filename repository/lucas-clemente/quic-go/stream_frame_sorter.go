@@ -163,18 +163,19 @@ func (s *streamFrameSorter) Head() *wire.StreamFrame {
 			return nil
 		}
 
+
 		elem := s.gaps.Front()//拿到第一个gap
 		var res *wire.StreamFrame
 		var dataPadding []byte//填充的空白数据
-		if elem.Value.Start-elem.Value.End+1<100{
+		/*if elem.Value.Start-elem.Value.End+1<100{
 			dataPadding = make([]byte,elem.Value.Start-elem.Value.End+1)
 			res = &wire.StreamFrame{Offset: elem.Value.Start,Data: dataPadding}
 			s.Push(res)
-		}else {
+		}else {*/
 			dataPadding = make([]byte,100,100)
 			res = &wire.StreamFrame{Offset: elem.Value.Start,Data: dataPadding}
 			s.Push(res)
-		}
+		//}
 
 
 		return s.queuedFrames[s.readPosition]

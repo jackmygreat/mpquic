@@ -500,32 +500,32 @@ func (s *session) handlePacketImpl(p *receivedPacket) error {
 	}
 	return pth.handlePacketImpl(p)
 }
-
+// 处理各种类型的frame
 func (s *session) handleFrames(fs []wire.Frame, p *path) error {
 	for _, ff := range fs {
 		var err error
 		wire.LogFrame(ff, false)
 		switch frame := ff.(type) {
-		case *wire.StreamFrame:
+		case *wire.StreamFrame:// 如果是streamFrame的话
 			err = s.handleStreamFrame(frame)
-		case *wire.AckFrame:
+		case *wire.AckFrame:// 如果是AckFrame的话
 			err = s.handleAckFrame(frame)
-		case *wire.ConnectionCloseFrame:
+		case *wire.ConnectionCloseFrame://如果是连接关闭的Frame
 			s.closeRemote(qerr.Error(frame.ErrorCode, frame.ReasonPhrase))
-		case *wire.GoawayFrame:
+		case *wire.GoawayFrame: // GoawayFrame还未实现
 			err = errors.New("unimplemented: handling GOAWAY frames")
-		case *wire.StopWaitingFrame:
+		case *wire.StopWaitingFrame://停止等待frame
 			// LeastUnacked is guaranteed to have LeastUnacked > 0
 			// therefore this will never underflow
 			p.receivedPacketHandler.SetLowerLimit(frame.LeastUnacked - 1)
-		case *wire.RstStreamFrame:
+		case *wire.RstStreamFrame:// 关闭stream的frame
 			err = s.handleRstStreamFrame(frame)
-		case *wire.WindowUpdateFrame:
+		case *wire.WindowUpdateFrame:// 窗口更新的Frame
 			err = s.handleWindowUpdateFrame(frame)
 		case *wire.BlockedFrame:
 			s.peerBlocked = true
 		case *wire.PingFrame:
-		case *wire.AddAddressFrame:
+		case *wire.AddAddressFrame://收到了AddAddressFrame的话，要更新路径
 			if s.pathManager != nil {
 				err = s.pathManager.handleAddAddressFrame(frame)
 				s.schedulePathsFrame()

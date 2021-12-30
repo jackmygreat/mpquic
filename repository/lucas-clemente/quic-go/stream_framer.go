@@ -33,8 +33,8 @@ func (f *streamFramer) AddFrameForRetransmission(frame *wire.StreamFrame) {
 	f.retransmissionQueue = append(f.retransmissionQueue, frame)
 }
 
-func (f *streamFramer) PopStreamFrames(maxLen protocol.ByteCount) []*wire.StreamFrame {
-	fs, currentLen := f.maybePopFramesForRetransmission(maxLen)
+func (f *streamFramer) PopStreamFrames(maxLen protocol.ByteCount) []*wire.StreamFrame {//这个地方是不是可以改？
+	fs, currentLen := f.maybePopFramesForRetransmission(maxLen)//先拿到需要重传的frame
 	return append(fs, f.maybePopNormalFrames(maxLen-currentLen)...)
 }
 
@@ -161,10 +161,10 @@ func (f *streamFramer) maybePopFramesForRetransmission(maxLen protocol.ByteCount
 	}
 	return
 }
-
+//这个函数会从每一个流当中轮询，查看是否有数据要发送，如果有的话，就拿到该数据
 func (f *streamFramer) maybePopNormalFrames(maxBytes protocol.ByteCount) (res []*wire.StreamFrame) {
 	frame := &wire.StreamFrame{DataLenPresent: true}
-	var currentLen protocol.ByteCount
+	var currentLen protocol.ByteCount //当前读到的字节数
 
 	fn := func(s *stream) (bool, error) {
 		if s == nil || s.streamID == 1 /* crypto stream is handled separately */ {
@@ -181,9 +181,9 @@ func (f *streamFramer) maybePopNormalFrames(maxBytes protocol.ByteCount) (res []
 		maxLen := maxBytes - currentLen - frameHeaderBytes
 
 		var sendWindowSize protocol.ByteCount
-		lenStreamData := s.lenOfDataForWriting()
+		lenStreamData := s.lenOfDataForWriting()//看看该流还有多少能够读取到的数据
 		if lenStreamData != 0 {
-			sendWindowSize, _ = f.flowControlManager.SendWindowSize(s.streamID)
+			sendWindowSize, _ = f.flowControlManager.SendWindowSize(s.streamID)//看看该流的发送窗口还剩多少
 			maxLen = utils.MinByteCount(maxLen, sendWindowSize)
 		}
 
@@ -195,7 +195,7 @@ func (f *streamFramer) maybePopNormalFrames(maxBytes protocol.ByteCount) (res []
 		if lenStreamData != 0 {
 			// Only getDataForWriting() if we didn't have data earlier, so that we
 			// don't send without FC approval (if a Write() raced).
-			data = s.getDataForWriting(maxLen)
+			data = s.getDataForWriting(maxLen)//拿取数据
 		}
 
 		// This is unlikely, but check it nonetheless, the scheduler might have jumped in. Seems to happen in ~20% of cases in the tests.
@@ -213,31 +213,29 @@ func (f *streamFramer) maybePopNormalFrames(maxBytes protocol.ByteCount) (res []
 		f.flowControlManager.AddBytesSent(s.streamID, protocol.ByteCount(len(data)))
 
 		// Finally, check if we are now FC blocked and should queue a BLOCKED frame
-		if f.flowControlManager.RemainingConnectionWindowSize() == 0 {
+		if f.flowControlManager.RemainingConnectionWindowSize() == 0 {//检查一下是否已经被阻塞了
 			// We are now connection-level FC blocked
 			f.blockedFrameQueue = append(f.blockedFrameQueue, &wire.BlockedFrame{StreamID: 0})
 		} else if !frame.FinBit && sendWindowSize-frame.DataLen() == 0 {
 			// We are now stream-level FC blocked
 			f.blockedFrameQueue = append(f.blockedFrameQueue, &wire.BlockedFrame{StreamID: s.StreamID()})
 		}
-		if val,ok := s.sess.streamsMap.unreliableStreamMark[s.streamID];ok{
+		if val,ok := s.sess.streamsMap.unreliableStreamMark[s.streamID];ok{//在发送数据的时候，一定要检查一下该流是否是可靠的
 			frame.UnreliableMarker = val
 		}
-		res = append(res, frame)
-		currentLen += frameHeaderBytes + frame.DataLen()
+		res = append(res, frame)// 将该frame添加到result当中
+		currentLen += frameHeaderBytes + frame.DataLen()//当前的长度
 
 		if currentLen == maxBytes {
 			return false, nil
 		}
 
 		frame = &wire.StreamFrame{DataLenPresent: true}
-		if val,ok := s.sess.streamsMap.unreliableStreamMark[s.streamID];ok{
-			frame.UnreliableMarker = val
-		}
+
 		return true, nil
 	}
 
-	f.streamsMap.RoundRobinIterate(fn)
+	f.streamsMap.RoundRobinIterate(fn)//轮询每一个流
 
 	return
 }
