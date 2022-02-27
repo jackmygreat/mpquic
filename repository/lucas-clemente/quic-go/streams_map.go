@@ -20,6 +20,7 @@ type streamsMap struct {
 	// needed for round-robin scheduling
 	openStreams     []protocol.StreamID
 	roundRobinIndex uint32
+	unreliableRobinIndex uint32
 	// a table that marks if a stream is unreliable or not
 	unreliableStreamMark map[protocol.StreamID]bool
 
@@ -370,13 +371,14 @@ func (m *streamsMap) Iterate(fn streamLambda) error {
 // RoundRobinIterate executes the streamLambda for every open stream, until the streamLambda returns false
 // It uses a round-robin-like scheduling to ensure that every stream is considered fairly
 // It prioritizes the crypto- and the header-stream (StreamIDs 1 and 3)
-func (m *streamsMap) RoundRobinIterate(fn streamLambda) error {
+// 优先轮询可靠流
+func (m *streamsMap) RoundRobinIterate(fn streamLambda) error {//这里是否需要优先轮询可靠流？
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	numStreams := uint32(len(m.streams))
 	startIndex := m.roundRobinIndex
-
+	startIndexUnreliable := m.unreliableRobinIndex
 	for _, i := range []protocol.StreamID{1, 3} {//优先轮询1和3流
 		cont, err := m.iterateFunc(i, fn)
 		if err != nil && err != errMapAccess {
@@ -386,13 +388,31 @@ func (m *streamsMap) RoundRobinIterate(fn streamLambda) error {
 			return nil
 		}
 	}
-
+	for i := uint32(0); i < numStreams; i++{
+		streamID := m.openStreams[(i+startIndexUnreliable)%numStreams]
+		if streamID == 1 || streamID == 3 {
+			continue
+		}
+		if _,ok := m.unreliableStreamMark[streamID];ok{ // 如果是不可靠的，那就跳过本轮循环
+			continue
+		}
+		cont, err := m.iterateFunc(streamID, fn)
+		if err != nil {
+			return err
+		}
+		m.unreliableRobinIndex = (m.unreliableRobinIndex + 1) % numStreams
+		if !cont {//是否需要跳出循环？，如果已经获取了所需呀的数据量，那么就跳出循环
+			break
+		}
+	}
 	for i := uint32(0); i < numStreams; i++ {
 		streamID := m.openStreams[(i+startIndex)%numStreams]
 		if streamID == 1 || streamID == 3 {
 			continue
 		}
-
+		if _,ok := m.unreliableStreamMark[streamID];!ok{ // 如果是可靠的，那就跳过本轮循环
+			continue
+		}
 		cont, err := m.iterateFunc(streamID, fn)
 		if err != nil {
 			return err

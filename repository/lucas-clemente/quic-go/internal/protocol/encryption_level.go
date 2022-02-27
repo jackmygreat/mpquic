@@ -12,6 +12,7 @@ const (
 	// EncryptionSecure is encrypted, but not forward secure
 	EncryptionSecure
 	// EncryptionForwardSecure is forward secure
+	// 前向安全代表了握手之后的加密状态
 	EncryptionForwardSecure
 )
 

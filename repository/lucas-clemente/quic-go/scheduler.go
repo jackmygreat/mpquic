@@ -14,7 +14,7 @@ type scheduler struct {
 	// XXX Currently round-robin based, inspired from MPTCP scheduler
 	quotas map[protocol.PathID]uint
 	sess      *session
-
+	cnt int
 }
 
 func (sch *scheduler) setup() {
@@ -57,9 +57,10 @@ func (sch *scheduler) getRetransmission(s *session) (hasRetransmission bool, ret
 
 			switch f := frame.(type) {//丢失的报文可能包含多种的Frame类型
 			case *wire.StreamFrame://如果是streamFrame的话，那么就判断其类型是否是unreliable的，如果是不可靠的话，那么就不需要重传
+				sch.cnt += 1
+				fmt.Println(sch.cnt)
 				if ok,_ := sch.sess.streamsMap.GetStreasmType(f.StreamID);ok {
 						//不可靠传输的逻辑,直接什么也不做，放弃重传是否可行？，应该是不可以的，接收方的逻辑应该改变一下，一旦ack之后，那些确实的Frame应该不再管了
-					fmt.Println("存在丢包")
 					//s.streamFramer.AddFrameForRetransmission(f)
 				}else {//如果是可靠的话，那么就需要进行重传
 					s.streamFramer.AddFrameForRetransmission(f)
@@ -136,10 +137,11 @@ pathLoop:
 	return selectedPath
 
 }
-
+// 选择一条 低延迟的路径
 func (sch *scheduler) selectPathLowLatency(s *session, hasRetransmission bool, hasStreamRetransmission bool, fromPth *path) *path {
 	// XXX Avoid using PathID 0 if there is more than 1 path
 	if len(s.paths) <= 1 {
+		// 如果没有重传，且0 Path不允许重传，就返回nil
 		if !hasRetransmission && !s.paths[protocol.InitialPathID].SendingAllowed() {
 			return nil
 		}
@@ -169,7 +171,7 @@ func (sch *scheduler) selectPathLowLatency(s *session, hasRetransmission bool, h
 pathLoop:
 	for pathID, pth := range s.paths {
 		// Don't block path usage if we retransmit, even on another path
-		if !hasRetransmission && !pth.SendingAllowed() {
+		if !hasRetransmission && !pth.SendingAllowed() {// 没有握手报文重传，且该路径不允许发送数据（也许书该路径的拥塞窗口已经满了？）的话，那么就会跳过该路径
 			continue pathLoop
 		}
 
@@ -187,6 +189,7 @@ pathLoop:
 
 		// Prefer staying single-path if not blocked by current path
 		// Don't consider this sample if the smoothed RTT is 0
+		// 如果本路径的采样率不足，导致smoothedRTT等于零的话
 		if lowerRTT != 0 && currentRTT == 0 {
 			continue pathLoop
 		}
@@ -325,33 +328,37 @@ func (sch *scheduler) ackRemainingPaths(s *session, totalWindowUpdateFrames []*w
 	s.peerBlocked = false
 	return nil
 }
-
+// 这个是供session调用选路的接口
 func (sch *scheduler) sendPacket(s *session) error {
 	var pth *path
 
 	// Update leastUnacked value of paths
 	s.pathsLock.RLock()
-	for _, pthTmp := range s.paths {
+	for _, pthTmp := range s.paths {//更新每一条路径的最小未被确认的序列号
 		pthTmp.SetLeastUnacked(pthTmp.sentPacketHandler.GetLeastUnacked())
 	}
 	s.pathsLock.RUnlock()
 
 	// get WindowUpdate frames
 	// this call triggers the flow controller to increase the flow control windows, if necessary
+	// 这个调用会触发流控制器在必要的情况下提高流控的窗口
 	windowUpdateFrames := s.getWindowUpdateFrames(false)
 	for _, wuf := range windowUpdateFrames {
 		s.packer.QueueControlFrame(wuf, pth)
 	}
 
 	// Repeatedly try sending until we don't have any more data, or run out of the congestion window
+	// 一直不停的发送数据，直到不存在任何的数据以及拥塞窗口没有空间了
 	for {
 		// We first check for retransmissions
 		// 先询问会话是否存在需要重传的报文，第一个是bool值，代表了是否有重传的报文，第二个和第三个返回值只有重传的报文是握手的时候有意义分别代表了握手时需要重传的报文和发送的路径
 		hasRetransmission, retransmitHandshakePacket, fromPth := sch.getRetransmission(s)
 		// XXX There might still be some stream frames to be retransmitted
+		// 可能streamFramer当中仍然存在一些未发送完的streamFrame
 		hasStreamRetransmission := s.streamFramer.HasFramesForRetransmission()//查询是否有需要重传的Frame
 
 		// Select the path here
+		// 拿到最低延迟的路径
 		s.pathsLock.RLock()
 		pth = sch.selectPath(s, hasRetransmission, hasStreamRetransmission, fromPth)
 		s.pathsLock.RUnlock()

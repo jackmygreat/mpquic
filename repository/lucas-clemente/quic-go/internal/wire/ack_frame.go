@@ -26,7 +26,7 @@ type AckFrame struct {
 	PathID       protocol.PathID
 	LargestAcked protocol.PacketNumber
 	LowestAcked  protocol.PacketNumber
-	AckRanges    []AckRange // has to be ordered. The highest ACK range goes first, the lowest ACK range goes last
+	AckRanges    []AckRange // has to be ordered. The highest ACK range goes first, the lowest ACK range goes last，ackRanges是指那些在LargestAcked和LowestAcked之间的那些未确认的报文序号的范围
 
 	// time when the LargestAcked was receiveid
 	// this field Will not be set for received ACKs frames

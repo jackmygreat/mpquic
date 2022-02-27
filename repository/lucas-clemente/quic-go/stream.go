@@ -26,11 +26,12 @@ type stream struct {
 	streamID protocol.StreamID
 	onData   func()
 	// onReset is a callback that should send a RST_STREAM
+	// 这个函数是一个回调函数，目的是当该stream被关闭的时候发送一个RST_STREAM 的Frame
 	onReset func(protocol.StreamID, protocol.ByteCount)
 
 	readPosInFrame int
-	writeOffset    protocol.ByteCount
-	readOffset     protocol.ByteCount
+	writeOffset    protocol.ByteCount // 写入的offset
+	readOffset     protocol.ByteCount// 读取的offset
 
 	// Once set, the errors must not be changed!
 	err error
@@ -120,7 +121,7 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 	}
 
 	bytesRead := 0
-	for bytesRead < len(p) {
+	for bytesRead < len(p) {//向字节数组当中填写数据，直到其被填满
 		s.mutex.Lock()
 		frame := s.frameQueue.Head()//从frameQueue.Head()拿数据
 		if frame == nil && bytesRead > 0 {//如果暂时没有可用的帧的话，且已经读取到了部分的数据
@@ -150,7 +151,7 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 			}
 
 			s.mutex.Unlock()
-			if deadline.IsZero() {
+			if deadline.IsZero() {//这说明读取的deadline没有被设置，那就不存在超时的问题，因此就一直等待数据的到来吧！！！
 				<-s.readChan//一旦放入了一个frame就会通知,但是就算放入了一个frame，这个frame也可能不在前面，可能造成frame = s.frameQueue.Head()拿到的是nil
 			} else {
 				select {
@@ -223,9 +224,9 @@ func (s *stream) Write(p []byte) (int, error) {
 		return 0, nil
 	}
 
-	s.dataForWriting = make([]byte, len(p))
+	s.dataForWriting = make([]byte, len(p))//将写入的数据放入到缓冲区里面
 	copy(s.dataForWriting, p)
-	s.onData()
+	s.onData()//通知session存在数据要发送了
 
 	var err error
 	for {

@@ -16,6 +16,7 @@ type packedPacket struct {
 	raw             []byte
 	frames          []wire.Frame
 	encryptionLevel protocol.EncryptionLevel
+	unreliableMarker  bool
 }
 
 type packetPacker struct {
@@ -123,9 +124,10 @@ func (p *packetPacker) PackHandshakeRetransmission(packet *ackhandler.Packet, pt
 }
 
 // PackPacket packs a new packet
+// 此函数是为了大宝生成一个新的报文
 // the other controlFrames are sent in the next packet, but might be queued and sent in the next packet if the packet would overflow MaxPacketSize otherwise
 func (p *packetPacker) PackPacket(pth *path) (*packedPacket, error) {
-	if p.streamFramer.HasCryptoStreamFrame() {
+	if p.streamFramer.HasCryptoStreamFrame() {//这一部分是为了判断加密流是否有数据要传输，如果有的话，那就优先传输加密流上的数据
 		return p.packCryptoPacket(pth)
 	}
 
@@ -204,11 +206,11 @@ func (p *packetPacker) packCryptoPacket(pth *path) (*packedPacket, error) {
 	}, nil
 }
 
-func (p *packetPacker) composeNextPacket(
+func (p *packetPacker) composeNextPacket(//为什么要有一个path的参数呢？
 	maxFrameSize protocol.ByteCount,
 	canSendStreamFrames bool,
 	pth *path,
-) ([]wire.Frame, error) {
+) ([]wire.Frame, error) { // 这个函数会从streamFramer的PopStreamFrame获取数据，获取的数据一部分来自新数据包装成的packet，一部分来自重传的Frame
 	var payloadLength protocol.ByteCount
 	var payloadFrames []wire.Frame
 
@@ -230,7 +232,7 @@ func (p *packetPacker) composeNextPacket(
 		payloadLength += l
 	}
 
-	for len(p.controlFrames) > 0 {
+	for len(p.controlFrames) > 0 {//
 		frame := p.controlFrames[len(p.controlFrames)-1]
 		minLength, err := frame.MinLength(p.version)
 		if err != nil {
@@ -257,13 +259,13 @@ func (p *packetPacker) composeNextPacket(
 	// however, for the last StreamFrame in the packet, we can omit the DataLen, thus saving 2 bytes and yielding a packet of exactly the correct size
 	maxFrameSize += 2
 
-	fs := p.streamFramer.PopStreamFrames(maxFrameSize - payloadLength)
+	fs := p.streamFramer.PopStreamFrames(maxFrameSize - payloadLength)//取出streamFrame
 	if len(fs) != 0 {
-		fs[len(fs)-1].DataLenPresent = false
+		fs[len(fs)-1].DataLenPresent = false//最后一个Frame不需要表明其长度，因此false
 	}
 
 	// TODO: Simplify
-	for _, f := range fs {
+	for _, f := range fs {//为什么此时不需要计算payloadlength大小了？
 		payloadFrames = append(payloadFrames, f)
 	}
 

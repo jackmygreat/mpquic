@@ -26,7 +26,7 @@ func ParseCommandLine() {
 	flag.StringVar(&FilePath, "f", " ", "-f file.flv")
 	flag.Parse()
 }
-const quicServerAddr = "127.0.0.1:5252"
+const quicServerAddr = "120.26.8.97:5252"
 
 var elapsed time.Duration
 var size int64
@@ -51,7 +51,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	now := time.Now()
 	pullflv(quicServerAddr,FilePath)
+	fmt.Println(time.Since(now))
 }
 
 
@@ -85,7 +87,7 @@ func pullflv(url, filename string) {
 	defer videostream.Close()
 	HandleError(err)
 	//----------------------------------------------
-
+	time.Sleep(time.Millisecond*200)
 	//---------------------------------------------
 	//第一块为了接收metaTag
 	metacontrolinfo := make([]byte,11+4)
@@ -110,6 +112,7 @@ func pullflv(url, filename string) {
 		_, err := io.ReadFull(controlstream, controlinfo) // recieve the size
 		str := string(controlinfo[0:3])
 		if str == "fin"{
+			fmt.Println("正常结束！！！")
 			break
 		}
 		HandleError(err)
@@ -125,17 +128,17 @@ func pullflv(url, filename string) {
 			// keyFrame，使用可靠流传输
 
 			io.ReadFull(keystream,tag.Raw[16:11+tag.Header.DataSize])
-			fmt.Println("key:",len(tag.Raw))
+			//fmt.Println("key:",len(tag.Raw))
 		}else{
 			// 非keyFrame，使用非可靠流传输
 
 			io.ReadFull(videostream,tag.Raw[16:11+tag.Header.DataSize])
-			fmt.Println("nonekey:",len(tag.Raw))
+			//fmt.Println("nonekey:",len(tag.Raw))
 		}
 		dura := time.Duration(tag.Header.Timestamp-preTagTS)*time.Millisecond
 		preTagTS = tag.Header.Timestamp
 		time.Sleep(dura)
-		fmt.Println(dura)
+
 
 		w.WriteTag(tag)
 

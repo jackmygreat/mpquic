@@ -20,6 +20,7 @@ type VersionNumber = protocol.VersionNumber
 type Cookie = handshake.Cookie
 
 // Stream is the interface implemented by QUIC streams
+// Stream 是一个接口，被QUIC的stream给实现
 type Stream interface {
 	// Read reads data from the stream.
 	// Read can be made to time out and return a net.Error with Timeout() == true
@@ -30,6 +31,7 @@ type Stream interface {
 	// after a fixed time limit; see SetDeadline and SetWriteDeadline.
 	io.Writer
 	io.Closer
+	// 返回该stream的StreamID
 	StreamID() StreamID
 	// Reset closes the stream with an error.
 	Reset(error)
@@ -52,8 +54,10 @@ type Stream interface {
 	// SetReadDeadline and SetWriteDeadline.
 	SetDeadline(t time.Time) error
 	// GetBytesSent returns the number of bytes of the stream that were sent to the peer
+	// 返回在该流上已经发送的字节数
 	GetBytesSent() (protocol.ByteCount, error)
 	// GetBytesRetrans returns the number of bytes of the stream that were retransmitted to the peer
+	// 返回重传的字节数
 	GetBytesRetrans() (protocol.ByteCount, error)
 }
 

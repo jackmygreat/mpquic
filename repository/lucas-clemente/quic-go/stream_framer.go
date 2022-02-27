@@ -127,7 +127,7 @@ func (f *streamFramer) PopCryptoStreamFrame(maxLen protocol.ByteCount) *wire.Str
 }
 
 func (f *streamFramer) maybePopFramesForRetransmission(maxLen protocol.ByteCount) (res []*wire.StreamFrame, currentLen protocol.ByteCount) {
-	for len(f.retransmissionQueue) > 0 {
+	for len(f.retransmissionQueue) > 0 {//从重传队列当中拿出需要重传的所有报文，这个队列应该是在scheduler当中添加的。
 		frame := f.retransmissionQueue[0]
 		frame.DataLenPresent = true
 
@@ -139,7 +139,7 @@ func (f *streamFramer) maybePopFramesForRetransmission(maxLen protocol.ByteCount
 		currentLen += frameHeaderLen
 
 		splitFrame := maybeSplitOffFrame(frame, maxLen-currentLen)
-		if splitFrame != nil { // StreamFrame was split
+		if splitFrame != nil { // StreamFrame was split,如果当前剩余的容量下雨frame当中的数据长的时候，此时必须要将splitFrame进行切割
 			res = append(res, splitFrame)
 			frameLen := splitFrame.DataLen()
 			currentLen += frameLen
@@ -178,7 +178,7 @@ func (f *streamFramer) maybePopNormalFrames(maxBytes protocol.ByteCount) (res []
 		if currentLen+frameHeaderBytes > maxBytes {
 			return false, nil // theoretically, we could find another stream that fits, but this is quite unlikely, so we stop here
 		}
-		maxLen := maxBytes - currentLen - frameHeaderBytes
+		maxLen := maxBytes - currentLen - frameHeaderBytes//当前还能发送的长度
 
 		var sendWindowSize protocol.ByteCount
 		lenStreamData := s.lenOfDataForWriting()//看看该流还有多少能够读取到的数据
@@ -187,7 +187,7 @@ func (f *streamFramer) maybePopNormalFrames(maxBytes protocol.ByteCount) (res []
 			maxLen = utils.MinByteCount(maxLen, sendWindowSize)
 		}
 
-		if maxLen == 0 {
+		if maxLen == 0 {//如果该流的发送窗口和可发送的数据量有一个为零的话，返回true，也就是该流不发送数据
 			return true, nil
 		}
 
@@ -199,7 +199,7 @@ func (f *streamFramer) maybePopNormalFrames(maxBytes protocol.ByteCount) (res []
 		}
 
 		// This is unlikely, but check it nonetheless, the scheduler might have jumped in. Seems to happen in ~20% of cases in the tests.
-		shouldSendFin := s.shouldSendFin()
+		shouldSendFin := s.shouldSendFin()//查看该流是不是数据已经发送完毕了，发送完毕的话，就需要将FIN进行置位
 		if data == nil && !shouldSendFin {
 			return true, nil
 		}
@@ -210,18 +210,18 @@ func (f *streamFramer) maybePopNormalFrames(maxBytes protocol.ByteCount) (res []
 		}
 
 		frame.Data = data
-		f.flowControlManager.AddBytesSent(s.streamID, protocol.ByteCount(len(data)))
+		f.flowControlManager.AddBytesSent(s.streamID, protocol.ByteCount(len(data)))//更新一下flowControlManager
 
 		// Finally, check if we are now FC blocked and should queue a BLOCKED frame
 		if f.flowControlManager.RemainingConnectionWindowSize() == 0 {//检查一下是否已经被阻塞了
 			// We are now connection-level FC blocked
 			f.blockedFrameQueue = append(f.blockedFrameQueue, &wire.BlockedFrame{StreamID: 0})
-		} else if !frame.FinBit && sendWindowSize-frame.DataLen() == 0 {
+		} else if !frame.FinBit && sendWindowSize-frame.DataLen() == 0 {//该stream已经被阻塞了
 			// We are now stream-level FC blocked
 			f.blockedFrameQueue = append(f.blockedFrameQueue, &wire.BlockedFrame{StreamID: s.StreamID()})
 		}
 		if val,ok := s.sess.streamsMap.unreliableStreamMark[s.streamID];ok{//在发送数据的时候，一定要检查一下该流是否是可靠的
-			frame.UnreliableMarker = val
+			frame.UnreliableMarker = val//将该frame标记为对应的类型
 		}
 		res = append(res, frame)// 将该frame添加到result当中
 		currentLen += frameHeaderBytes + frame.DataLen()//当前的长度

@@ -2,6 +2,7 @@ package quic
 
 import (
 	"errors"
+	"fmt"
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/protocol"
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/utils"
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/wire"
@@ -14,6 +15,8 @@ type streamFrameSorter struct {
 	sess *session
 	SID protocol.StreamID
 	unreliableMarker bool
+	cnt int
+	cnt2 int
 }
 
 var (
@@ -32,6 +35,14 @@ func newStreamFrameSorter() *streamFrameSorter {
 }
 
 func (s *streamFrameSorter) Push(frame *wire.StreamFrame) error {
+	if s.unreliableMarker && frame.Offset < s.readPosition{
+		s.cnt += 1
+		fmt.Println("delay:",s.cnt)
+	}
+	s.cnt2 += 1
+	if s.unreliableMarker && s.cnt2>70000{
+		fmt.Println("received frames:",s.cnt2)
+	}
 	if frame.DataLen() == 0 {
 		if frame.FinBit {
 			s.queuedFrames[frame.Offset] = frame
