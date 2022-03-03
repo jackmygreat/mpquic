@@ -1,3 +1,6 @@
 /flv_test/flv_sender/output.flv
 /flv_test/flv_receiver/output.flv
 /output.flv
+/flv_test/flv_sender/bbb100s.flv
+/minrtt/sender/bbb100s.flv
+/victor/sender/bbb100s.flv

@@ -28,10 +28,12 @@ func ParseCommandLine() {
 	flag.Parse()
 }
 
-const quicServerAddr = "127.0.0.1:5252"
+const quicServerAddr = "120.26.8.97:5252"
 
 var elapsed time.Duration
 var size int64
+var cnt int64 = 0
+var pos int64 = -1
 
 func HandleError(err error) {
 	if err != nil {
@@ -43,10 +45,7 @@ func HandleError(err error) {
 
 func main() {
 	ParseCommandLine()
-	if len(FilePath) <= 1 {
-		fmt.Println("./flvparse -f filename.flv")
-		return
-	}
+	FilePath = "./output.flv"
 	fmt.Println(len(FilePath))
 	f, err := os.OpenFile("./clientlog.txt", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	defer f.Close()
@@ -79,6 +78,7 @@ func pullflv(url, filename string) {
 	//---------------------------------------------
 	//打开三个流：key帧流、控制流、pb流
 	controlstream, err := sess.AcceptStream()
+
 	defer controlstream.Close()
 	HandleError(err)
 	keystream, err := sess.AcceptStream()
@@ -87,10 +87,12 @@ func pullflv(url, filename string) {
 	videostream, err := sess.AcceptStream()
 	defer videostream.Close()
 	HandleError(err)
+
 	//----------------------------------------------
 	time.Sleep(time.Millisecond * 200)
 	//---------------------------------------------
 	//第一块为了接收metaTag
+
 	metacontrolinfo := make([]byte, 11+4)
 
 	_, err2 := io.ReadFull(controlstream, metacontrolinfo) //recieve the size
@@ -105,11 +107,21 @@ func pullflv(url, filename string) {
 	copy(metatag.Raw[metatag.Header.DataSize+11:metatag.Header.DataSize+15], metacontrolinfo[11:15])
 	w.WriteTag(metatag)
 	//----------------------------------------------
+	controlinfo := make([]byte, 20) //一个tagHeader 一个pretagsize videotagdata:前5个字节
 
-	preTagTS := uint32(0)
+	_, err = io.ReadFull(controlstream, controlinfo) // recieve the first key frame
+	tag := httpflv.Tag{}
+	tag.Header = parseTagHeader(controlinfo[0:11]) // 解析tagHeader
+	tag.Raw = make([]byte, tag.Header.DataSize+15) //  原始数据
+	copy(tag.Raw[0:16], controlinfo[0:16])
+	copy(tag.Raw[tag.Header.DataSize+11:tag.Header.DataSize+15], controlinfo[16:20])
+	_, err = io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
+	w.WriteTag(tag)
+
+	var length time.Duration
 	for {
-		controlinfo := make([]byte, 20) //一个tagHeader 一个pretagsize videotagdata:前5个字节
 
+		controlinfo := make([]byte, 20)                   //一个tagHeader 一个pretagsize videotagdata:前5个字节
 		_, err := io.ReadFull(controlstream, controlinfo) // recieve the size
 		str := string(controlinfo[0:3])
 		if str == "fin" {
@@ -124,26 +136,51 @@ func pullflv(url, filename string) {
 		tag.Raw = make([]byte, tag.Header.DataSize+15) //  原始数据
 		copy(tag.Raw[0:16], controlinfo[0:16])
 		copy(tag.Raw[tag.Header.DataSize+11:tag.Header.DataSize+15], controlinfo[16:20])
+
 		//判断该帧类型是keyFrame或者是其他的Frame类型
 		if tag.Header.Type == httpflv.TagTypeVideo && tag.Raw[httpflv.TagHeaderSize] == httpflv.AVCKeyFrame {
 			// keyFrame，使用可靠流传输
+			deadline := time.Now().Add(time.Millisecond * 33)
+			keystream.SetReadDeadline(deadline)
+			_, err = io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
+			if err != nil {
+				io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
+				length += time.Now().Sub(deadline)
+				cnt += 1
+				fmt.Println(cnt)
+			}
+			pos++
 
-			io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
+			if deadline.After(time.Now()) {
+				time.Sleep(deadline.Sub(time.Now()))
+			}
 			//fmt.Println("key:",len(tag.Raw))
 		} else {
 			// 非keyFrame，使用非可靠流传输
+			if ((pos)%30-1)%3 == 0 { //sleep 34 ms
+				deadline := time.Now().Add(time.Millisecond * 34)
+				io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+				pos++
+				if deadline.After(time.Now()) {
+					time.Sleep(deadline.Sub(time.Now()))
+				}
 
-			io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+			} else {
+				deadline := time.Now().Add(time.Millisecond * 33)
+				io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+				pos++
+				if deadline.After(time.Now()) {
+					time.Sleep(deadline.Sub(time.Now()))
+				}
+			}
 			//fmt.Println("nonekey:",len(tag.Raw))
 		}
 		w.WriteTag(tag)
-		dura := time.Duration(tag.Header.Timestamp-preTagTS) * time.Millisecond
-		preTagTS = tag.Header.Timestamp
-		time.Sleep(dura)
 
 	}
-
+	fmt.Println(length)
 }
+
 func generateTLSConfig() *tls.Config {
 
 	key, err := rsa.GenerateKey(rand.Reader, 1024)
