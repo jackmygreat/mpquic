@@ -141,52 +141,48 @@ func pullflv(url, filename string) {
 		if tag.Header.Type == httpflv.TagTypeVideo && tag.Raw[httpflv.TagHeaderSize] == httpflv.AVCKeyFrame {
 			// keyFrame，使用可靠流传输
 			deadline := time.Now().Add(time.Millisecond * 33)
-			keystream.SetReadDeadline(deadline)
 			_, err = io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
-			if err != nil {
-				io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
-				length += time.Now().Sub(deadline)
-				cnt += 1
-				fmt.Println(cnt)
-			}
+
 			pos++
 
 			if deadline.After(time.Now()) {
 				time.Sleep(deadline.Sub(time.Now()))
+			}else{
+				length += time.Now().Sub(deadline)
+				cnt+=1
+				fmt.Println(cnt)
 			}
 			//fmt.Println("key:",len(tag.Raw))
 		} else {
 			// 非keyFrame，使用非可靠流传输
 			if ((pos)%30-1)%3 == 0 { //sleep 34 ms
 				deadline := time.Now().Add(time.Millisecond * 34)
-				videostream.SetReadDeadline(deadline)
+
 				_, err = io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
-				if err != nil {
-					io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+
+				pos++
+
+				if deadline.After(time.Now()) {
+					time.Sleep(deadline.Sub(time.Now()))
+				}else{
 					length += time.Now().Sub(deadline)
 					cnt += 1
 					fmt.Println(cnt)
-				}
-
-				pos++
-				if deadline.After(time.Now()) {
-					time.Sleep(deadline.Sub(time.Now()))
 				}
 
 			} else {
 				deadline := time.Now().Add(time.Millisecond * 33)
-				videostream.SetReadDeadline(deadline)
+
 				_, err = io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
-				if err != nil {
-					io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+
+				pos++
+
+				if deadline.After(time.Now()) {
+					time.Sleep(deadline.Sub(time.Now()))
+				}else{
 					length += time.Now().Sub(deadline)
 					cnt += 1
 					fmt.Println(cnt)
-				}
-
-				pos++
-				if deadline.After(time.Now()) {
-					time.Sleep(deadline.Sub(time.Now()))
 				}
 			}
 			//fmt.Println("nonekey:",len(tag.Raw))

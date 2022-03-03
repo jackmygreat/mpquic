@@ -121,7 +121,7 @@ func pullflv(url, filename string) {
 	var length time.Duration
 	for {
 
-		controlinfo := make([]byte, 20)                   //一个tagHeader 一个pretagsize videotagdata:前5个字节
+		controlinfo := make([]byte, 20) //一个tagHeader 一个pretagsize videotagdata:前5个字节
 		_, err := io.ReadFull(controlstream, controlinfo) // recieve the size
 		str := string(controlinfo[0:3])
 		if str == "fin" {
@@ -141,25 +141,26 @@ func pullflv(url, filename string) {
 		if tag.Header.Type == httpflv.TagTypeVideo && tag.Raw[httpflv.TagHeaderSize] == httpflv.AVCKeyFrame {
 			// keyFrame，使用可靠流传输
 			deadline := time.Now().Add(time.Millisecond * 33)
-			keystream.SetReadDeadline(deadline)
+
 			_, err = io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
-			if err != nil {
-				io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
+
+			pos++
+			if deadline.After(time.Now()) {//提前收到的话
+				time.Sleep(deadline.Sub(time.Now()))
+			}else{
 				length += time.Now().Sub(deadline)
 				cnt += 1
 				fmt.Println(cnt)
-			}
-			pos++
-
-			if deadline.After(time.Now()) {
-				time.Sleep(deadline.Sub(time.Now()))
 			}
 			//fmt.Println("key:",len(tag.Raw))
 		} else {
 			// 非keyFrame，使用非可靠流传输
 			if ((pos)%30-1)%3 == 0 { //sleep 34 ms
 				deadline := time.Now().Add(time.Millisecond * 34)
-				io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+				_, err = io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+				if err!=nil{
+					HandleError(err)
+				}
 				pos++
 				if deadline.After(time.Now()) {
 					time.Sleep(deadline.Sub(time.Now()))
@@ -167,7 +168,10 @@ func pullflv(url, filename string) {
 
 			} else {
 				deadline := time.Now().Add(time.Millisecond * 33)
-				io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+				_, err = io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+				if err!=nil{
+					HandleError(err)
+				}
 				pos++
 				if deadline.After(time.Now()) {
 					time.Sleep(deadline.Sub(time.Now()))
