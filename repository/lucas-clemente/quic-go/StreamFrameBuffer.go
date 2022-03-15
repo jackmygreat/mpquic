@@ -7,7 +7,7 @@ import (
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go/internal/wire"
 )
 
-type streamFrameSorter struct {
+type streamFrameBuffer struct {
 	queuedFrames map[protocol.ByteCount]*wire.StreamFrame
 	readPosition protocol.ByteCount
 	gaps         *utils.ByteIntervalList
@@ -16,14 +16,10 @@ type streamFrameSorter struct {
 	unreliableMarker bool
 }
 
-var (
-	errTooManyGapsInReceivedStreamData = errors.New("Too many gaps in received StreamFrame data")
-	errDuplicateStreamData             = errors.New("Duplicate Stream Data")
-	errEmptyStreamData                 = errors.New("Stream Data empty")
-)
 
-func newStreamFrameSorter() *streamFrameSorter {
-	s := streamFrameSorter{
+
+func newStreamFrameBuffer() *streamFrameBuffer {
+	s := streamFrameBuffer{
 		gaps:         utils.NewByteIntervalList(),
 		queuedFrames: make(map[protocol.ByteCount]*wire.StreamFrame),
 	}
@@ -31,12 +27,13 @@ func newStreamFrameSorter() *streamFrameSorter {
 	return &s
 }
 
-func (s *streamFrameSorter) Push(frame *wire.StreamFrame) error {
+func (s *streamFrameBuffer) Push(frame *wire.StreamFrame) error {
 
 	/*if s.unreliableMarker && s.cnt2>70000{
 		fmt.Println("received frames:",s.cnt2)
 	}*/
-	//fmt.Println("Queue:", s.unreliableMarker,len(s.queuedFrames))
+	//fmt.Println("Buffer:",s.unreliableMarker, len(s.queuedFrames))
+
 	if frame.DataLen() == 0 {
 		if frame.FinBit {
 			s.queuedFrames[frame.Offset] = frame
@@ -71,7 +68,7 @@ func (s *streamFrameSorter) Push(frame *wire.StreamFrame) error {
 	}
 
 	if gap == nil {
-		return errors.New("StreamFrameSorter BUG: no gap found")
+		return errors.New("StreamFrameBuffer BUG: no gap found")
 	}
 
 	if start < gap.Value.Start {//左长，和该gap左对齐，情况一和情况三版本
@@ -87,7 +84,7 @@ func (s *streamFrameSorter) Push(frame *wire.StreamFrame) error {
 	for end >= endGap.Value.End {//情况二和情况三的场景
 		nextEndGap := endGap.Next()
 		if nextEndGap == nil {
-			return errors.New("StreamFrameSorter BUG: no end gap found")
+			return errors.New("StreamFrameBuffer BUG: no end gap found")
 		}
 		if endGap != gap {
 			s.gaps.Remove(endGap)
@@ -150,7 +147,7 @@ func (s *streamFrameSorter) Push(frame *wire.StreamFrame) error {
 	return nil
 }
 
-func (s *streamFrameSorter) Pop() *wire.StreamFrame {
+func (s *streamFrameBuffer) Pop() *wire.StreamFrame {
 	frame := s.Head()
 	if frame != nil {
 		s.readPosition += frame.DataLen() // 下一个读取的位置
@@ -159,16 +156,11 @@ func (s *streamFrameSorter) Pop() *wire.StreamFrame {
 	return frame
 }
 
-func (s *streamFrameSorter) Head() *wire.StreamFrame {
+func (s *streamFrameBuffer) Head() *wire.StreamFrame {
 	frame, ok := s.queuedFrames[s.readPosition]
 	if ok {//如果存在的话
 		return frame
 	} else if s.unreliableMarker{//证明是不可靠流,且在索要数据的时候，没有该数据，那么在读取的时候就要填入零了
-		if len(s.queuedFrames)<=10{
-			return nil
-		}
-
-
 		elem := s.gaps.Front()//拿到第一个gap
 		var res *wire.StreamFrame
 		var dataPadding []byte//填充的空白数据
@@ -177,9 +169,9 @@ func (s *streamFrameSorter) Head() *wire.StreamFrame {
 			res = &wire.StreamFrame{Offset: elem.Value.Start,Data: dataPadding}
 			s.Push(res)
 		}else {*/
-			dataPadding = make([]byte,100,100)
-			res = &wire.StreamFrame{Offset: elem.Value.Start,Data: dataPadding}
-			s.Push(res)
+		dataPadding = make([]byte,100,100)
+		res = &wire.StreamFrame{Offset: elem.Value.Start,Data: dataPadding}
+		s.Push(res)
 		//}
 
 

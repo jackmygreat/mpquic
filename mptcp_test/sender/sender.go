@@ -11,7 +11,6 @@ import (
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/lal/pkg/remux"
 	"github.com/q191201771/naza/pkg/nazalog"
-	quic "github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go"
 	"math/big"
 	"net"
 	"os"
@@ -54,37 +53,28 @@ func main() {
 		panic(err)
 	}
 
-	quicServerAddr := "127.0.0.1:5252"
+	quicServerAddr := "127.0.0.1:9999"
 	pushflv(quicServerAddr, FilePath)
 	HandleError(err)
 
 }
 func pushflv(url, filename string) {
-
-	listen, err := net.Listen("tcp","127.0.0.1:5258")
-	controlstream2,err := listen.Accept()
-	HandleError(err)
-	defer controlstream2.Close()
-
 	//mpquic config
-	quicConfig := &quic.Config{
-		CreatePaths: true, //要求创建多路径
-	}
-	listener, err := quic.ListenAddr(url, generateTLSConfig(), quicConfig)
-	HandleError(err)
-	sess, err := listener.Accept() //accepting a session from sender
-	HandleError(err)
+
+
+
 	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
 	HandleError(err)
+	listen, err := net.Listen("tcp",url)
+	controlstream, err := listen.Accept()
+	HandleError(err)
+	defer controlstream.Close()
 
-	//controlstream, err := sess.OpenStream()
-
-
-	keystream, err := sess.OpenStream()
+	keystream, err := listen.Accept()
 	defer keystream.Close()
 	HandleError(err)
 
-	pbstream, err := sess.OpenUnreliableStream()
+	pbstream, err := listen.Accept()
 	HandleError(err)
 	defer pbstream.Close()
 
@@ -93,11 +83,11 @@ func pushflv(url, filename string) {
 	}
 	nazalog.Infof("read tags from flv file succ. len of tags=%d", len(tags))
 	now := time.Now()
-	loopPush(tags, pbstream, controlstream2, keystream)
+	loopPush(tags, pbstream, controlstream, keystream)
 	fmt.Println(time.Since(now))
 	time.Sleep(time.Second * 2)
 }
-func loopPush(tags []httpflv.Tag, pbstream quic.Stream, controlstream net.Conn, keystream quic.Stream) {
+func loopPush(tags []httpflv.Tag, pbstream net.Conn, controlstream net.Conn, keystream net.Conn) {
 	var (
 		totalBaseTS        uint32 // 每轮最后更新
 		prevTS             uint32 // 上一个tag
@@ -175,7 +165,7 @@ func loopPush(tags []httpflv.Tag, pbstream quic.Stream, controlstream net.Conn, 
 				diffTick := n - firstTagTick
 				diffTS := h.TimestampAbs - firstTagTS
 				if diffTick < int64(diffTS) {
-					time.Sleep(time.Duration(int64(diffTS)-diffTick) * time.Millisecond)
+					//time.Sleep(time.Duration(int64(diffTS)-diffTick) * time.Millisecond)
 				}
 			} else {
 				// 所有轮的第一个tag

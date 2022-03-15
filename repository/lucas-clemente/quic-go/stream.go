@@ -48,6 +48,8 @@ type stream struct {
 	resetRemotely utils.AtomicBool
 
 	frameQueue   *streamFrameSorter
+	frameBuffer  *streamFrameBuffer
+
 	readChan     chan struct{}
 	readDeadline time.Time
 
@@ -56,6 +58,7 @@ type stream struct {
 	rstSent        utils.AtomicBool
 	writeChan      chan struct{}
 	writeDeadline  time.Time
+	unreliableMarker bool
 	sess *session
 	flowControlManager flowcontrol.FlowControlManager
 }
@@ -71,6 +74,7 @@ func (deadlineError) Timeout() bool   { return true }
 var errDeadline net.Error = &deadlineError{}
 
 // newStream creates a new Stream
+// unused
 func newStream(StreamID protocol.StreamID,
 	onData func(),
 	onReset func(protocol.StreamID, protocol.ByteCount),
@@ -81,6 +85,7 @@ func newStream(StreamID protocol.StreamID,
 		streamID:           StreamID,
 		flowControlManager: flowControlManager,
 		frameQueue:         newStreamFrameSorter(),
+		frameBuffer: 				newStreamFrameBuffer(),
 		readChan:           make(chan struct{}, 1),
 		writeChan:          make(chan struct{}, 1),
 	}
@@ -98,13 +103,18 @@ func newStreamType(StreamID protocol.StreamID,
 		streamID:           StreamID,
 		flowControlManager: flowControlManager,
 		frameQueue:         newStreamFrameSorter(),
+		frameBuffer: 				newStreamFrameBuffer(),
 		readChan:           make(chan struct{}, 1),
 		writeChan:          make(chan struct{}, 1),
 		sess: sess,
 	}
 	s.frameQueue.sess = sess
+	s.frameBuffer.sess = sess
 	s.frameQueue.SID = StreamID
+	s.frameBuffer.SID = StreamID
 	s.frameQueue.unreliableMarker = s.frameQueue.sess.streamsMap.unreliableStreamMark[StreamID]
+	s.frameBuffer.unreliableMarker = s.frameQueue.unreliableMarker
+	s.unreliableMarker = s.frameQueue.unreliableMarker
 	s.ctx, s.ctxCancel = context.WithCancel(context.Background())
 	return s
 }
@@ -123,7 +133,7 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 	bytesRead := 0
 	for bytesRead < len(p) {//向字节数组当中填写数据，直到其被填满
 		s.mutex.Lock()
-		frame := s.frameQueue.Head()//从frameQueue.Head()拿数据
+		frame := s.frameBuffer.Head()//从frameQueue.Head()拿数据
 		if frame == nil && bytesRead > 0 {//如果暂时没有可用的帧的话，且已经读取到了部分的数据
 			err = s.err
 			s.mutex.Unlock()
@@ -160,7 +170,7 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 				}
 			}
 			s.mutex.Lock()
-			frame = s.frameQueue.Head()//这个函数并不会消耗frameQueue的frame数量
+			frame = s.frameBuffer.Head()//这个函数并不会消耗frameQueue的frame数量
 		}
 		s.mutex.Unlock()
 
@@ -193,7 +203,7 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 		if s.readPosInFrame >= int(frame.DataLen()) {//怎么可能大于？？？,应该是等于吧？也就是本帧读完
 			fin := frame.FinBit
 			s.mutex.Lock()
-			s.frameQueue.Pop()//只有该帧内的内容被读取完了才会调用该函数
+			s.frameBuffer.Pop()//只有该帧内的内容被读取完了才会调用该函数
 			s.mutex.Unlock()
 			if fin {
 				s.finishedReading.Set(true)
@@ -328,7 +338,20 @@ func (s *stream) AddStreamFrame(frame *wire.StreamFrame) error {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	err = s.frameQueue.Push(frame)
+	if !s.unreliableMarker {//可靠
+		err = s.frameQueue.Push(frame)
+		for s.frameQueue.Head()!=nil {
+			s.frameBuffer.Push(s.frameQueue.Pop())
+		}
+	}else {//非可靠
+		err = s.frameBuffer.Push(frame)
+		s.frameQueue.Push(frame)
+		for s.frameQueue.Head()!=nil {
+			s.frameQueue.Pop()
+		}
+	}
+
+
 	if err != nil && err != errDuplicateStreamData {
 		return err
 	}

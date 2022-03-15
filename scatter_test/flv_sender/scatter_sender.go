@@ -207,7 +207,7 @@ func loopPush(tags []httpflv.Tag, pbstream quic.Stream,controlstream quic.Stream
 			}
 
 			//fmt.Println(controlInfo,tag.Raw[11:11+h.MsgLen])
-
+			time.Sleep(time.Millisecond*33)
 			prevTS = h.TimestampAbs
 		} // tags for loop
 

@@ -11,10 +11,10 @@ import (
 	"github.com/q191201771/lal/pkg/httpflv"
 	"github.com/q191201771/naza/pkg/bele"
 	"github.com/q191201771/naza/pkg/nazalog"
-	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go"
 	"io"
-	"math/big"
 	"net"
+
+	"math/big"
 	"os"
 	"time"
 )
@@ -28,7 +28,7 @@ func ParseCommandLine() {
 	flag.Parse()
 }
 
-const quicServerAddr = "127.0.0.1:5252"
+const quicServerAddr = "127.0.0.1:9999"
 
 var elapsed time.Duration
 var size int64
@@ -58,16 +58,10 @@ func main() {
 }
 
 func pullflv(url, filename string) {
-
 	var (
 		w   httpflv.FLVFileWriter
 		err error
 	)
-
-	controlstream, err := net.Dial("tcp","127.0.0.1:5258")
-	HandleError(err)
-	defer controlstream.Close()
-
 
 	err = w.Open(filename)
 	nazalog.Assert(nil, err)
@@ -75,26 +69,22 @@ func pullflv(url, filename string) {
 	err = w.WriteRaw(httpflv.FLVHeader)
 	nazalog.Assert(nil, err)
 
-	quicConfig := &quic.Config{
-		CreatePaths: true,
-	}
-	sess, err := quic.DialAddr(url, &tls.Config{InsecureSkipVerify: true}, quicConfig)
-	HandleError(err)
+
+
 
 	//---------------------------------------------
 	//打开三个流：key帧流、控制流、pb流
-	//controlstream, err := sess.AcceptStream()
+	controlstream, err := net.Dial("tcp", url)
 
-	keystream, err := sess.AcceptStream()
+	defer controlstream.Close()
+	HandleError(err)
+	keystream, err := net.Dial("tcp", url)
 	defer keystream.Close()
 	HandleError(err)
-	videostream, err := sess.AcceptStream()
+	videostream, err := net.Dial("tcp", url)
 	defer videostream.Close()
 	HandleError(err)
 
-
-
-	HandleError(err)
 	//----------------------------------------------
 	time.Sleep(time.Millisecond*4000)
 	//---------------------------------------------
@@ -130,9 +120,7 @@ func pullflv(url, filename string) {
 	for {
 
 		controlinfo := make([]byte, 20) //一个tagHeader 一个pretagsize videotagdata:前5个字节
-		l5 := time.Now()
 		_, err := io.ReadFull(controlstream, controlinfo) // recieve the size
-		length += time.Since(l5)
 		str := string(controlinfo[0:3])
 		if str == "fin" || pos == 3025{
 			fmt.Println("正常结束！！！")
@@ -151,9 +139,9 @@ func pullflv(url, filename string) {
 		if tag.Header.Type == httpflv.TagTypeVideo && tag.Raw[httpflv.TagHeaderSize] == httpflv.AVCKeyFrame {
 			// keyFrame，使用可靠流传输
 			deadline := time.Now().Add(time.Millisecond * 33)
-			l2 := time.Now()
+			l2:=time.Now()
 			_, err = io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
-			length += time.Since(l2)
+			length+=time.Since(l2)
 			pos++
 			if deadline.After(time.Now()) {//提前收到的话
 				time.Sleep(deadline.Sub(time.Now()))
