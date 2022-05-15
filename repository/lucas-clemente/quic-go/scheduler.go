@@ -12,16 +12,22 @@ import (
 
 type scheduler struct {
 	// XXX Currently round-robin based, inspired from MPTCP scheduler
-	quotas map[protocol.PathID]uint
-	sess      *session
-	cnt int
+	quotas  map[protocol.PathID]uint
+	quotas2 map[protocol.PathID]uint
+	sess    *session
+	cnt     int
 }
 
 func (sch *scheduler) setup() {
 	sch.quotas = make(map[protocol.PathID]uint)
+	sch.quotas2 = make(map[protocol.PathID]uint)
 }
 
-func (sch *scheduler) getRetransmission(s *session) (hasRetransmission bool, retransmitPacket *ackhandler.Packet, pth *path) {// 这个是获取需要重传的报文的
+func (sch *scheduler) setup2() {
+	sch.quotas2 = make(map[protocol.PathID]uint)
+}
+
+func (sch *scheduler) getRetransmission(s *session) (hasRetransmission bool, retransmitPacket *ackhandler.Packet, pth *path) { // 这个是获取需要重传的报文的
 	// check for retransmissions first
 	for {
 		// TODO add ability to reinject on another path
@@ -29,9 +35,9 @@ func (sch *scheduler) getRetransmission(s *session) (hasRetransmission bool, ret
 		// TODO 轮询的时候是否需要从上一次的位置开始？
 		s.pathsLock.RLock()
 	retransmitLoop:
-		for _, pthTmp := range s.paths {//遍历每一条路径，获取需要重传的报文
-			retransmitPacket = pthTmp.sentPacketHandler.DequeuePacketForRetransmission()//从pthTmp的sentPacketHandler当中拿需要重传的报文
-			if retransmitPacket != nil {//拿到报文之后，立刻退出循环
+		for _, pthTmp := range s.paths { //遍历每一条路径，获取需要重传的报文
+			retransmitPacket = pthTmp.sentPacketHandler.DequeuePacketForRetransmission() //从pthTmp的sentPacketHandler当中拿需要重传的报文
+			if retransmitPacket != nil {                                                 //拿到报文之后，立刻退出循环
 				pth = pthTmp
 				break retransmitLoop
 			}
@@ -55,18 +61,19 @@ func (sch *scheduler) getRetransmission(s *session) (hasRetransmission bool, ret
 		// resend the frames that were in the packet
 		for _, frame := range retransmitPacket.GetFramesForRetransmission() { // 从该报文当中拿出所有的frame
 
-			switch f := frame.(type) {//丢失的报文可能包含多种的Frame类型
-			case *wire.StreamFrame://如果是streamFrame的话，那么就判断其类型是否是unreliable的，如果是不可靠的话，那么就不需要重传
-				sch.cnt += 1
-				fmt.Println(sch.cnt)
-				if ok,_ := sch.sess.streamsMap.GetStreasmType(f.StreamID);ok {
-						//不可靠传输的逻辑,直接什么也不做，放弃重传是否可行？，应该是不可以的，接收方的逻辑应该改变一下，一旦ack之后，那些确实的Frame应该不再管了
+			switch f := frame.(type) { //丢失的报文可能包含多种的Frame类型
+			case *wire.StreamFrame: //如果是streamFrame的话，那么就判断其类型是否是unreliable的，如果是不可靠的话，那么就不需要重传
+				//sch.cnt += 1
+				//fmt.Println(sch.cnt)
+				if ok, _ := sch.sess.streamsMap.GetStreasmType(f.StreamID); ok {
+					fmt.Println("aaaa")
+					//不可靠传输的逻辑,直接什么也不做，放弃重传是否可行？，应该是不可以的，接收方的逻辑应该改变一下，一旦ack之后，那些确实的Frame应该不再管了
 					//s.streamFramer.AddFrameForRetransmission(f)
-				}else {//如果是可靠的话，那么就需要进行重传
+				} else { //如果是可靠的话，那么就需要进行重传
 					s.streamFramer.AddFrameForRetransmission(f)
 				}
 				// todo windowUpdateFrame中的ByteOffset是什么意思？？
-			case *wire.WindowUpdateFrame://如果是windowUpdate帧的话，
+			case *wire.WindowUpdateFrame: //如果是windowUpdate帧的话，
 				// only retransmit WindowUpdates if the stream is not yet closed and the we haven't sent another WindowUpdate with a higher ByteOffset for the stream
 				// XXX Should it be adapted to multiple paths?
 				currentOffset, err := s.flowControlManager.GetReceiveWindow(f.StreamID)
@@ -137,6 +144,56 @@ pathLoop:
 	return selectedPath
 
 }
+func (sch *scheduler) selectPathUnreliable(s *session, hasRetransmission bool, hasStreamRetransmission bool, fromPth *path) *path {
+	if sch.quotas2 == nil {
+		sch.setup2()
+	}
+
+	// XXX Avoid using PathID 0 if there is more than 1 path
+	if len(s.paths) <= 1 {
+		if !hasRetransmission && !s.paths[protocol.InitialPathID].SendingAllowed() {
+			return nil
+		}
+		return s.paths[protocol.InitialPathID]
+	}
+
+	// TODO cope with decreasing number of paths (needed?)
+	var selectedPath *path
+	var lowerQuota, currentQuota uint
+	var ok bool
+
+	// Max possible value for lowerQuota at the beginning
+	lowerQuota = ^uint(0)
+
+pathLoop:
+	for pathID, pth := range s.paths {
+
+		// If this path is potentially failed, do no consider it for sending
+		if pth.potentiallyFailed.Get() {
+			continue pathLoop
+		}
+
+		// XXX Prevent using initial pathID if multiple paths
+		if pathID == protocol.InitialPathID {
+			continue pathLoop
+		}
+
+		currentQuota, ok = sch.quotas2[pathID]
+		if !ok {
+			sch.quotas2[pathID] = 0
+			currentQuota = 0
+		}
+
+		if currentQuota < lowerQuota {
+			selectedPath = pth
+			lowerQuota = currentQuota
+		}
+	}
+
+	return selectedPath
+
+}
+
 // 选择一条 低延迟的路径
 func (sch *scheduler) selectPathLowLatency(s *session, hasRetransmission bool, hasStreamRetransmission bool, fromPth *path) *path {
 	// XXX Avoid using PathID 0 if there is more than 1 path
@@ -171,7 +228,7 @@ func (sch *scheduler) selectPathLowLatency(s *session, hasRetransmission bool, h
 pathLoop:
 	for pathID, pth := range s.paths {
 		// Don't block path usage if we retransmit, even on another path
-		if !hasRetransmission && !pth.SendingAllowed() {// 没有握手报文重传，且该路径不允许发送数据（也许书该路径的拥塞窗口已经满了？）的话，那么就会跳过该路径
+		if !hasRetransmission && !pth.SendingAllowed() { // 没有握手报文重传，且该路径不允许发送数据（也许书该路径的拥塞窗口已经满了？）的话，那么就会跳过该路径
 			continue pathLoop
 		}
 
@@ -248,7 +305,11 @@ func (sch *scheduler) performPacketSending(s *session, windowUpdateFrames []*wir
 	}
 
 	// Packet sent, so update its quota
-	sch.quotas[pth.pathID]++
+	if pth.SendingAllowed() {
+		sch.quotas[pth.pathID]++
+	} else {
+		sch.quotas2[pth.pathID]++
+	}
 
 	// Provide some logging if it is the last packet
 	for _, frame := range packet.frames {
@@ -328,13 +389,14 @@ func (sch *scheduler) ackRemainingPaths(s *session, totalWindowUpdateFrames []*w
 	s.peerBlocked = false
 	return nil
 }
+
 // 这个是供session调用选路的接口
 func (sch *scheduler) sendPacket(s *session) error {
 	var pth *path
 
 	// Update leastUnacked value of paths
 	s.pathsLock.RLock()
-	for _, pthTmp := range s.paths {//更新每一条路径的最小未被确认的序列号
+	for _, pthTmp := range s.paths { //更新每一条路径的最小未被确认的序列号
 		pthTmp.SetLeastUnacked(pthTmp.sentPacketHandler.GetLeastUnacked())
 	}
 	s.pathsLock.RUnlock()
@@ -355,7 +417,7 @@ func (sch *scheduler) sendPacket(s *session) error {
 		hasRetransmission, retransmitHandshakePacket, fromPth := sch.getRetransmission(s)
 		// XXX There might still be some stream frames to be retransmitted
 		// 可能streamFramer当中仍然存在一些未发送完的streamFrame
-		hasStreamRetransmission := s.streamFramer.HasFramesForRetransmission()//查询是否有需要重传的Frame
+		hasStreamRetransmission := s.streamFramer.HasFramesForRetransmission() //查询是否有需要重传的Frame
 
 		// Select the path here
 		// 拿到最低延迟的路径
@@ -365,9 +427,24 @@ func (sch *scheduler) sendPacket(s *session) error {
 
 		// XXX No more path available, should we have a new QUIC error message?
 		// 如果没有可用的path了，需要发送窗口更新帧？
-		if pth == nil {
+
+		var unreliablemarker bool = false
+		len := uint32(len(s.streamsMap.streams))
+		for i := uint32(0); i < len; i++ { //分别判断当前的可靠和非可靠的缓冲区
+			streamID := s.streamsMap.openStreams[i]
+			stream := s.streamsMap.streams[streamID]
+			if stream.unreliableMarker && stream.lenOfDataForWriting() > 0 {
+				unreliablemarker = true
+			}
+		}
+
+		if pth == nil && unreliablemarker == false { //并且不可靠流不存在数据
 			windowUpdateFrames := s.getWindowUpdateFrames(false)
 			return sch.ackRemainingPaths(s, windowUpdateFrames)
+		} else if pth == nil { //存在数据切 pth == nil的时候
+			s.pathsLock.RLock()
+			pth = sch.selectPathUnreliable(s, hasRetransmission, hasStreamRetransmission, fromPth)
+			s.pathsLock.RUnlock()
 		}
 
 		// If we have an handshake packet retransmission, do it directly
@@ -411,7 +488,7 @@ func (sch *scheduler) sendPacket(s *session) error {
 		for pf := s.streamFramer.PopPathsFrame(); pf != nil; pf = s.streamFramer.PopPathsFrame() {
 			s.packer.QueueControlFrame(pf, pth)
 		}
-
+		//传输报文
 		pkt, sent, err := sch.performPacketSending(s, windowUpdateFrames, pth)
 		if err != nil {
 			return err

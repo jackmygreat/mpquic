@@ -12,11 +12,11 @@ import (
 )
 
 type packedPacket struct {
-	number          protocol.PacketNumber
-	raw             []byte
-	frames          []wire.Frame
-	encryptionLevel protocol.EncryptionLevel
-	unreliableMarker  bool
+	number           protocol.PacketNumber
+	raw              []byte
+	frames           []wire.Frame
+	encryptionLevel  protocol.EncryptionLevel
+	unreliableMarker bool
 }
 
 type packetPacker struct {
@@ -25,8 +25,8 @@ type packetPacker struct {
 	version      protocol.VersionNumber
 	cryptoSetup  handshake.CryptoSetup
 
-	connectionParameters  handshake.ConnectionParametersManager
-	streamFramer          *streamFramer
+	connectionParameters handshake.ConnectionParametersManager
+	streamFramer         *streamFramer
 
 	controlFrames []wire.Frame
 	stopWaiting   map[protocol.PathID]*wire.StopWaitingFrame
@@ -41,14 +41,14 @@ func newPacketPacker(connectionID protocol.ConnectionID,
 	version protocol.VersionNumber,
 ) *packetPacker {
 	return &packetPacker{
-		cryptoSetup:           cryptoSetup,
-		connectionID:          connectionID,
-		connectionParameters:  connectionParameters,
-		perspective:           perspective,
-		version:               version,
-		streamFramer:          streamFramer,
-		stopWaiting:           make(map[protocol.PathID]*wire.StopWaitingFrame),
-		ackFrame:              make(map[protocol.PathID]*wire.AckFrame),
+		cryptoSetup:          cryptoSetup,
+		connectionID:         connectionID,
+		connectionParameters: connectionParameters,
+		perspective:          perspective,
+		version:              version,
+		streamFramer:         streamFramer,
+		stopWaiting:          make(map[protocol.PathID]*wire.StopWaitingFrame),
+		ackFrame:             make(map[protocol.PathID]*wire.AckFrame),
 	}
 }
 
@@ -127,7 +127,7 @@ func (p *packetPacker) PackHandshakeRetransmission(packet *ackhandler.Packet, pt
 // 此函数是为了大宝生成一个新的报文
 // the other controlFrames are sent in the next packet, but might be queued and sent in the next packet if the packet would overflow MaxPacketSize otherwise
 func (p *packetPacker) PackPacket(pth *path) (*packedPacket, error) {
-	if p.streamFramer.HasCryptoStreamFrame() {//这一部分是为了判断加密流是否有数据要传输，如果有的话，那就优先传输加密流上的数据
+	if p.streamFramer.HasCryptoStreamFrame() { //这一部分是为了判断加密流是否有数据要传输，如果有的话，那就优先传输加密流上的数据
 		return p.packCryptoPacket(pth)
 	}
 
@@ -206,7 +206,7 @@ func (p *packetPacker) packCryptoPacket(pth *path) (*packedPacket, error) {
 	}, nil
 }
 
-func (p *packetPacker) composeNextPacket(//为什么要有一个path的参数呢？
+func (p *packetPacker) composeNextPacket( //为什么要有一个path的参数呢？
 	maxFrameSize protocol.ByteCount,
 	canSendStreamFrames bool,
 	pth *path,
@@ -232,7 +232,7 @@ func (p *packetPacker) composeNextPacket(//为什么要有一个path的参数呢
 		payloadLength += l
 	}
 
-	for len(p.controlFrames) > 0 {//
+	for len(p.controlFrames) > 0 { //
 		frame := p.controlFrames[len(p.controlFrames)-1]
 		minLength, err := frame.MinLength(p.version)
 		if err != nil {
@@ -259,13 +259,13 @@ func (p *packetPacker) composeNextPacket(//为什么要有一个path的参数呢
 	// however, for the last StreamFrame in the packet, we can omit the DataLen, thus saving 2 bytes and yielding a packet of exactly the correct size
 	maxFrameSize += 2
 
-	fs := p.streamFramer.PopStreamFrames(maxFrameSize - payloadLength)//取出streamFrame
+	fs := p.streamFramer.PopStreamFrames2(maxFrameSize-payloadLength, pth) //取出streamFrame
 	if len(fs) != 0 {
-		fs[len(fs)-1].DataLenPresent = false//最后一个Frame不需要表明其长度，因此false
+		fs[len(fs)-1].DataLenPresent = false //最后一个Frame不需要表明其长度，因此false
 	}
 
 	// TODO: Simplify
-	for _, f := range fs {//为什么此时不需要计算payloadlength大小了？
+	for _, f := range fs { //为什么此时不需要计算payloadlength大小了？
 		payloadFrames = append(payloadFrames, f)
 	}
 
@@ -357,4 +357,3 @@ func (p *packetPacker) canSendData(encLevel protocol.EncryptionLevel) bool {
 	}
 	return encLevel == protocol.EncryptionForwardSecure
 }
-

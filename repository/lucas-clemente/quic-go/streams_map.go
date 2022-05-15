@@ -18,8 +18,8 @@ type streamsMap struct {
 
 	streams map[protocol.StreamID]*stream
 	// needed for round-robin scheduling
-	openStreams     []protocol.StreamID
-	roundRobinIndex uint32
+	openStreams          []protocol.StreamID
+	roundRobinIndex      uint32
 	unreliableRobinIndex uint32
 	// a table that marks if a stream is unreliable or not
 	unreliableStreamMark map[protocol.StreamID]bool
@@ -67,20 +67,22 @@ func newStreamsMap(newStream newStreamLambda, pers protocol.Perspective, connect
 
 	return &sm
 }
+
 // request this stream is reliable or unreliable
-func (m *streamsMap)GetStreasmType(id protocol.StreamID) (bool , error){
+func (m *streamsMap) GetStreasmType(id protocol.StreamID) (bool, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
 	if _, ok := m.streams[id]; !ok {
 		return false, fmt.Errorf("a stream with ID %d already exists", id)
 	}
-	if val,ok := m.unreliableStreamMark[id];ok{
-		return val,nil
-	}else {
-		return false,nil
+	if val, ok := m.unreliableStreamMark[id]; ok {
+		return val, nil
+	} else {
+		return false, nil
 	}
 }
+
 // GetOrOpenStream either returns an existing stream, a newly opened stream, or nil if a stream with the provided ID is already closed.
 // Newly opened streams should only originate from the client. To open a stream from the server, OpenStream should be used.
 // 是为了打开远端不属于自己发起的流
@@ -145,6 +147,7 @@ func (m *streamsMap) GetOrOpenStream(id protocol.StreamID) (*stream, error) {
 	m.nextStreamOrErrCond.Broadcast()
 	return m.streams[id], nil
 }
+
 // GetOrOpenStream either returns an existing stream, a newly opened stream, or nil if a stream with the provided ID is already closed.
 // Newly opened streams should only originate from the client. To open a stream from the server, OpenStream should be used.
 // 是为了打开远端不属于自己发起的流
@@ -200,11 +203,10 @@ func (m *streamsMap) GetOrOpenStreamType(id protocol.StreamID, marker bool) (*st
 	}
 
 	// open a stream initiated by the peer and send the marker
-	_, err := m.openRemoteStreamType(sid,marker)
+	_, err := m.openRemoteStreamType(sid, marker)
 	if err != nil {
 		return nil, err
 	}
-
 
 	m.nextStreamOrErrCond.Broadcast()
 	return m.streams[id], nil
@@ -232,7 +234,7 @@ func (m *streamsMap) openRemoteStream(id protocol.StreamID) (*stream, error) {
 	m.putStream(s)
 	return s, nil
 }
-func (m *streamsMap) openRemoteStreamType(id protocol.StreamID,marker bool) (*stream, error) {
+func (m *streamsMap) openRemoteStreamType(id protocol.StreamID, marker bool) (*stream, error) {
 	if m.numIncomingStreams >= m.connectionParameters.GetMaxIncomingStreams() {
 		return nil, qerr.TooManyOpenStreams
 	}
@@ -251,7 +253,7 @@ func (m *streamsMap) openRemoteStreamType(id protocol.StreamID,marker bool) (*st
 	}
 
 	s := m.newStream(id)
-	m.putStreamType(s,marker)
+	m.putStreamType(s, marker)
 	return s, nil
 }
 func (m *streamsMap) openStreamImpl() (*stream, error) {
@@ -268,7 +270,7 @@ func (m *streamsMap) openStreamImpl() (*stream, error) {
 
 	m.nextStream += 2
 	s := m.newStream(id)
-	m.putStreamType(s,false)
+	m.putStreamType(s, false)
 	return s, nil
 }
 
@@ -285,10 +287,11 @@ func (m *streamsMap) openUnreliableStreamImpl() (*stream, error) {
 	}
 
 	m.nextStream += 2
-	s := m.newStream(id)//调用session当中的newStream方法
-	m.putStreamType(s,true)
+	s := m.newStream(id) //调用session当中的newStream方法
+	m.putStreamType(s, true)
 	return s, nil
 }
+
 // OpenStream opens the next available stream
 func (m *streamsMap) OpenStream() (*stream, error) { //发起新的stream
 	m.mutex.Lock()
@@ -299,8 +302,9 @@ func (m *streamsMap) OpenStream() (*stream, error) { //发起新的stream
 	}
 	return m.openStreamImpl()
 }
+
 // mark: open an unreliable Stream
-func (m *streamsMap) OpenUnreliableStream()(*stream, error){//发起新的不可靠传输的stream
+func (m *streamsMap) OpenUnreliableStream() (*stream, error) { //发起新的不可靠传输的stream
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -372,14 +376,14 @@ func (m *streamsMap) Iterate(fn streamLambda) error {
 // It uses a round-robin-like scheduling to ensure that every stream is considered fairly
 // It prioritizes the crypto- and the header-stream (StreamIDs 1 and 3)
 // 优先轮询可靠流
-func (m *streamsMap) RoundRobinIterate(fn streamLambda) error {//这里是否需要优先轮询可靠流？
+func (m *streamsMap) RoundRobinIterate(fn streamLambda) error { //这里是否需要优先轮询可靠流？
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	numStreams := uint32(len(m.streams))
 	startIndex := m.roundRobinIndex
 	startIndexUnreliable := m.unreliableRobinIndex
-	for _, i := range []protocol.StreamID{1, 3} {//优先轮询1和3流
+	for _, i := range []protocol.StreamID{1, 3} { //优先轮询1和3流
 		cont, err := m.iterateFunc(i, fn)
 		if err != nil && err != errMapAccess {
 			return err
@@ -388,12 +392,12 @@ func (m *streamsMap) RoundRobinIterate(fn streamLambda) error {//这里是否需
 			return nil
 		}
 	}
-	for i := uint32(0); i < numStreams; i++{
+	for i := uint32(0); i < numStreams; i++ {
 		streamID := m.openStreams[(i+startIndexUnreliable)%numStreams]
 		if streamID == 1 || streamID == 3 {
 			continue
 		}
-		if _,ok := m.unreliableStreamMark[streamID];ok{ // 如果是不可靠的，那就跳过本轮循环
+		if _, ok := m.unreliableStreamMark[streamID]; ok { // 如果是不可靠的，那就跳过本轮循环
 			continue
 		}
 		cont, err := m.iterateFunc(streamID, fn)
@@ -401,7 +405,7 @@ func (m *streamsMap) RoundRobinIterate(fn streamLambda) error {//这里是否需
 			return err
 		}
 		m.unreliableRobinIndex = (m.unreliableRobinIndex + 1) % numStreams
-		if !cont {//是否需要跳出循环？，如果已经获取了所需呀的数据量，那么就跳出循环
+		if !cont { //是否需要跳出循环？，如果已经获取了所需呀的数据量，那么就跳出循环
 			break
 		}
 	}
@@ -410,7 +414,7 @@ func (m *streamsMap) RoundRobinIterate(fn streamLambda) error {//这里是否需
 		if streamID == 1 || streamID == 3 {
 			continue
 		}
-		if _,ok := m.unreliableStreamMark[streamID];!ok{ // 如果是可靠的，那就跳过本轮循环
+		if _, ok := m.unreliableStreamMark[streamID]; !ok { // 如果是可靠的，那就跳过本轮循环
 			continue
 		}
 		cont, err := m.iterateFunc(streamID, fn)
@@ -424,7 +428,60 @@ func (m *streamsMap) RoundRobinIterate(fn streamLambda) error {//这里是否需
 	}
 	return nil
 }
+func (m *streamsMap) RoundRobinIterate2(fn streamLambda, path *path) error { //这里是否需要优先轮询可靠流？
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
+	numStreams := uint32(len(m.streams))
+	startIndex := m.roundRobinIndex
+	startIndexUnreliable := m.unreliableRobinIndex
+	for _, i := range []protocol.StreamID{1, 3} { //优先轮询1和3流
+		cont, err := m.iterateFunc(i, fn)
+		if err != nil && err != errMapAccess {
+			return err
+		}
+		if !cont {
+			return nil
+		}
+	}
+	if path.sentPacketHandler.SendingAllowed() { //如果该路径允许发送的话，证明是正常的途径到达的,那么先要轮询可靠的再轮询不可靠的
+		for i := uint32(0); i < numStreams; i++ {
+			streamID := m.openStreams[(i+startIndexUnreliable)%numStreams]
+			if streamID == 1 || streamID == 3 {
+				continue
+			}
+			if _, ok := m.unreliableStreamMark[streamID]; ok { // 如果是不可靠的，那就跳过本轮循环
+				continue
+			}
+			cont, err := m.iterateFunc(streamID, fn)
+			if err != nil {
+				return err
+			}
+			m.unreliableRobinIndex = (m.unreliableRobinIndex + 1) % numStreams
+			if !cont { //是否需要跳出循环？，如果已经获取了所需呀的数据量，那么就跳出循环
+				break
+			}
+		}
+	}
+	for i := uint32(0); i < numStreams; i++ {
+		streamID := m.openStreams[(i+startIndex)%numStreams]
+		if streamID == 1 || streamID == 3 {
+			continue
+		}
+		if _, ok := m.unreliableStreamMark[streamID]; !ok { // 如果是可靠的，那就跳过本轮循环
+			continue
+		}
+		cont, err := m.iterateFunc(streamID, fn)
+		if err != nil {
+			return err
+		}
+		m.roundRobinIndex = (m.roundRobinIndex + 1) % numStreams
+		if !cont {
+			break
+		}
+	}
+	return nil
+}
 func (m *streamsMap) iterateFunc(streamID protocol.StreamID, fn streamLambda) (bool, error) {
 	str, ok := m.streams[streamID]
 	if !ok {
@@ -444,8 +501,9 @@ func (m *streamsMap) putStream(s *stream) error {
 
 	return nil
 }
+
 // marker stands for the stream type: reliable stream(false) unrelaible stream(true)
-func (m *streamsMap) putStreamType(s *stream,marker bool) error {
+func (m *streamsMap) putStreamType(s *stream, marker bool) error {
 	id := s.StreamID()
 	if _, ok := m.streams[id]; ok {
 		return fmt.Errorf("a stream with ID %d already exists", id)

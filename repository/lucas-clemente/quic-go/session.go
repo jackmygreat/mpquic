@@ -58,9 +58,9 @@ type session struct {
 	version      protocol.VersionNumber
 	config       *Config
 
-	paths        map[protocol.PathID]*path
-	closedPaths  map[protocol.PathID]bool
-	pathsLock    sync.RWMutex
+	paths       map[protocol.PathID]*path
+	closedPaths map[protocol.PathID]bool
+	pathsLock   sync.RWMutex
 
 	createPaths bool
 
@@ -71,7 +71,7 @@ type session struct {
 	remoteRTTs         map[protocol.PathID]time.Duration
 	lastPathsFrameSent time.Time
 
-	streamFramer          *streamFramer
+	streamFramer *streamFramer
 
 	flowControlManager flowcontrol.FlowControlManager
 
@@ -85,7 +85,7 @@ type session struct {
 	receivedPackets  chan *receivedPacket
 	sendingScheduled chan struct{}
 	// closeChan is used to notify the run loop that it should terminate.
-	closeChan chan closeError  //
+	closeChan chan closeError //
 	closeOnce sync.Once
 
 	ctx       context.Context
@@ -111,10 +111,10 @@ type session struct {
 
 	connectionParameters handshake.ConnectionParametersManager
 
-	sessionCreationTime     time.Time  // 会话创建的时间
-	lastNetworkActivityTime time.Time  // 上一次网络活动的时间
+	sessionCreationTime     time.Time // 会话创建的时间
+	lastNetworkActivityTime time.Time // 上一次网络活动的时间
 
-	timer           *utils.Timer
+	timer *utils.Timer
 	// keepAlivePingSent stores whether a Ping frame was sent to the peer or not
 	// it is reset as soon as we receive a packet from the peer
 	keepAlivePingSent bool
@@ -124,7 +124,7 @@ type session struct {
 	pathManager         *pathManager
 	pathManagerLaunched bool
 
-	scheduler           *scheduler
+	scheduler *scheduler
 }
 
 var _ Session = &session{}
@@ -231,13 +231,13 @@ func (s *session) setup(
 	s.rttStats = s.paths[protocol.InitialPathID].rttStats
 	s.flowControlManager = flowcontrol.NewFlowControlManager(s.connectionParameters, s.rttStats, s.remoteRTTs)
 	s.streamsMap = newStreamsMap(s.newStream, s.perspective, s.connectionParameters) // 将创建stream的函数传递给streamMap
-	s.streamFramer = newStreamFramer(s.streamsMap, s.flowControlManager) //创建streamFramer，这个东西是为了装所有的要发送的streamFrame,包括了那些需要重传的streamFrame
+	s.streamFramer = newStreamFramer(s.streamsMap, s.flowControlManager)             //创建streamFramer，这个东西是为了装所有的要发送的streamFrame,包括了那些需要重传的streamFrame
 	s.pathTimers = make(chan *path)
 
 	var err error
-	if s.perspective == protocol.PerspectiveServer {//如果是服务器的话
-		cryptoStream, _ := s.GetOrOpenStream(1)//服务器需要打开id为1的流，这个流主要是用来加密用的
-		_, _ = s.AcceptStream() // don't expose the crypto stream,创建一个流和接收一个流，这两个步骤是分开的
+	if s.perspective == protocol.PerspectiveServer { //如果是服务器的话
+		cryptoStream, _ := s.GetOrOpenStream(1) //服务器需要打开id为1的流，这个流主要是用来加密用的
+		_, _ = s.AcceptStream()                 // don't expose the crypto stream,创建一个流和接收一个流，这两个步骤是分开的
 		verifySourceAddr := func(clientAddr net.Addr, cookie *Cookie) bool {
 			return s.config.AcceptCookie(clientAddr, cookie)
 		}
@@ -247,8 +247,8 @@ func (s *session) setup(
 				s.perspective,
 				s.version,
 				tlsConf,
-				cryptoStream,//加密流
-				aeadChanged,//管道
+				cryptoStream, //加密流
+				aeadChanged,  //管道
 			)
 		} else {
 			s.cryptoSetup, err = newCryptoSetup(
@@ -263,8 +263,8 @@ func (s *session) setup(
 				aeadChanged,
 			)
 		}
-	} else {//如果是客户端的话
-		cryptoStream, _ := s.OpenStream()//打开第一个流
+	} else { //如果是客户端的话
+		cryptoStream, _ := s.OpenStream() //打开第一个流
 		if s.version.UsesTLS() {
 			s.cryptoSetup, err = handshake.NewCryptoSetupTLS(
 				hostname,
@@ -298,7 +298,7 @@ func (s *session) setup(
 		s.streamFramer,
 		s.perspective,
 		s.version,
-	)//用来将将各种类型的Frame打包成packet
+	) //用来将将各种类型的Frame打包成packet
 	s.unpacker = &packetUnpacker{aead: s.cryptoSetup, version: s.version, sess: s}
 
 	return s, handshakeChan, nil
@@ -307,7 +307,7 @@ func (s *session) setup(
 // run the session main loop
 func (s *session) run() error {
 	// Start the crypto stream handler
-	go func() {//需要先处理加密的东西
+	go func() { //需要先处理加密的东西
 		if err := s.cryptoSetup.HandleCryptoStream(); err != nil {
 			s.Close(err)
 		}
@@ -324,7 +324,7 @@ runLoop:
 		select {
 		case closeErr = <-s.closeChan:
 			s.pathsLock.RLock()
-			for _, pth := range s.paths {//关闭每一条路径
+			for _, pth := range s.paths { //关闭每一条路径
 				select {
 				case pth.closeChan <- nil:
 				default:
@@ -346,21 +346,21 @@ runLoop:
 				s.pathManager.runClosed <- struct{}{}
 			}
 			break runLoop
-		case <-s.timer.Chan()://超时的话
+		case <-s.timer.Chan(): //超时的话
 			s.timer.SetRead()
 			// We do all the interesting stuff after the switch statement, so
 			// nothing to see here.
-		case <-s.sendingScheduled://如果有数据要发送的话
+		case <-s.sendingScheduled: //如果有数据要发送的话
 			// We do all the interesting stuff after the switch statement, so
 			// nothing to see here.
-		case tmpPth := <-s.pathTimers://存在路径超时的话，拿出超时的路径
+		case tmpPth := <-s.pathTimers: //存在路径超时的话，拿出超时的路径
 			timerPth = tmpPth
 			// We do all the interesting stuff after the switch statement, so
 			// nothing to see here.
-		case p := <-s.receivedPackets://如果接收到报文的话，那么就处理报文
-			err := s.handlePacketImpl(p)//解密该报文，报文解密的话，每接收到一个报文，都需要对应路径上去，以检查超时之类的事情，path解密后得到Frame，会发给session的handleFrame函数
+		case p := <-s.receivedPackets: //如果接收到报文的话，那么就处理报文
+			err := s.handlePacketImpl(p) //解密该报文，报文解密的话，每接收到一个报文，都需要对应路径上去，以检查超时之类的事情，path解密后得到Frame，会发给session的handleFrame函数
 			if err != nil {
-				if qErr, ok := err.(*qerr.QuicError); ok && qErr.ErrorCode == qerr.DecryptionFailure {//如果解密失败的话，会缓存下来
+				if qErr, ok := err.(*qerr.QuicError); ok && qErr.ErrorCode == qerr.DecryptionFailure { //如果解密失败的话，会缓存下来
 					s.tryQueueingUndecryptablePacket(p)
 					continue
 				}
@@ -369,7 +369,7 @@ runLoop:
 			}
 			// This is a bit unclean, but works properly, since the packet always
 			// begins with the public header and we never copy it.
-			putPacketBuffer(p.publicHeader.Raw)//为啥要放这里面？
+			putPacketBuffer(p.publicHeader.Raw) //为啥要放这里面？
 		case l, ok := <-aeadChanged:
 			if !ok { // the aeadChanged chan was closed. This means that the handshake is completed.
 				s.handshakeComplete = true
@@ -383,7 +383,7 @@ runLoop:
 		}
 
 		now := time.Now()
-		if timerPth != nil {//这个是为了处理路径超时情况发生的逻辑 todo
+		if timerPth != nil { //这个是为了处理路径超时情况发生的逻辑 todo
 			if timeout := timerPth.sentPacketHandler.GetAlarmTimeout(); !timeout.IsZero() && timeout.Before(now) {
 				// This could cause packets to be retransmitted, so check it before trying
 				// to send packets.
@@ -392,7 +392,7 @@ runLoop:
 			timerPth = nil
 		}
 
-		if !s.pathManagerLaunched && s.handshakeComplete {//如果握手成功的话，会通知pathManager，从而开始创建多个路径了，并且pathManagerLaunched = true
+		if !s.pathManagerLaunched && s.handshakeComplete { //如果握手成功的话，会通知pathManager，从而开始创建多个路径了，并且pathManagerLaunched = true
 			// XXX (QDC): for benchmark tests
 			if s.pathManager != nil {
 				s.pathManager.handshakeCompleted <- struct{}{}
@@ -400,7 +400,7 @@ runLoop:
 			}
 		}
 
-		if s.config.KeepAlive && s.handshakeComplete && time.Since(s.lastNetworkActivityTime) >= s.idleTimeout()/2 {//如果所有路径长期没收到报文，超时的话
+		if s.config.KeepAlive && s.handshakeComplete && time.Since(s.lastNetworkActivityTime) >= s.idleTimeout()/2 { //如果所有路径长期没收到报文，超时的话
 			// send the PING frame since there is no activity in the session
 			s.pathsLock.RLock()
 			// XXX (QDC): send PING over all paths, but is it really needed/useful?
@@ -411,7 +411,7 @@ runLoop:
 			s.keepAlivePingSent = true
 		}
 
-		if err := s.sendPacket(); err != nil {// 这个时候证明了有数据要发送 todo
+		if err := s.sendPacket(); err != nil { // 这个时候证明了有数据要发送 todo
 			s.closeLocal(err)
 		}
 		//发生了错误，因为长期接收到了很多不能够解密的报文
@@ -428,11 +428,11 @@ runLoop:
 		}
 
 		// Check if we should send a PATHS frame (currently hardcoded at 200 ms) only when at least one stream is open (not counting streams 1 and 3 never closed...)
-		if s.handshakeComplete && s.version >= protocol.VersionMP && now.Sub(s.lastPathsFrameSent) >= 200 * time.Millisecond && len(s.streamsMap.openStreams) > 2 {
+		if s.handshakeComplete && s.version >= protocol.VersionMP && now.Sub(s.lastPathsFrameSent) >= 200*time.Millisecond && len(s.streamsMap.openStreams) > 2 {
 			s.schedulePathsFrame()
 		}
 
-		s.garbageCollectStreams()//这个是为了删除那些已经结束生命周期的stream
+		s.garbageCollectStreams() //这个是为了删除那些已经结束生命周期的stream
 	}
 
 	// only send the error the handshakeChan when the handshake is not completed yet
@@ -473,7 +473,7 @@ func (s *session) idleTimeout() time.Duration {
 	return s.connectionParameters.GetIdleConnectionStateLifetime()
 }
 
-func (s *session) handlePacketImpl(p *receivedPacket) error {// 处理session接收到的所有的报文，将这些报文散在对应的path上去，将其解密，path会将解密后的frame 发送到 handleFrames 处理
+func (s *session) handlePacketImpl(p *receivedPacket) error { // 处理session接收到的所有的报文，将这些报文散在对应的path上去，将其解密，path会将解密后的frame 发送到 handleFrames 处理
 	if s.perspective == protocol.PerspectiveClient {
 		diversificationNonce := p.publicHeader.DiversificationNonce
 		if len(diversificationNonce) > 0 {
@@ -491,11 +491,11 @@ func (s *session) handlePacketImpl(p *receivedPacket) error {// 处理session接
 	s.keepAlivePingSent = false
 
 	var pth *path
-	var ok  bool
+	var ok bool
 	var err error
 
-	pth, ok = s.paths[p.publicHeader.PathID]//根据该报文头当中的pathID拿到对应的path，让该path处理该报文
-	if !ok {//如果不存在该path的话，那么就需要先创建该path
+	pth, ok = s.paths[p.publicHeader.PathID] //根据该报文头当中的pathID拿到对应的path，让该path处理该报文
+	if !ok {                                 //如果不存在该path的话，那么就需要先创建该path
 		// It's a new path initiated from remote host
 		pth, err = s.pathManager.createPathFromRemote(p)
 		if err != nil {
@@ -504,32 +504,33 @@ func (s *session) handlePacketImpl(p *receivedPacket) error {// 处理session接
 	}
 	return pth.handlePacketImpl(p)
 }
+
 // 处理各种类型的frame，path会调用该函数
 func (s *session) handleFrames(fs []wire.Frame, p *path) error {
 	for _, ff := range fs {
 		var err error
 		wire.LogFrame(ff, false)
 		switch frame := ff.(type) {
-		case *wire.StreamFrame:// 如果是streamFrame的话
+		case *wire.StreamFrame: // 如果是streamFrame的话
 			err = s.handleStreamFrame(frame)
-		case *wire.AckFrame:// 如果是AckFrame的话
+		case *wire.AckFrame: // 如果是AckFrame的话
 			err = s.handleAckFrame(frame)
-		case *wire.ConnectionCloseFrame://如果是连接关闭的Frame
+		case *wire.ConnectionCloseFrame: //如果是连接关闭的Frame
 			s.closeRemote(qerr.Error(frame.ErrorCode, frame.ReasonPhrase))
 		case *wire.GoawayFrame: // GoawayFrame还未实现
 			err = errors.New("unimplemented: handling GOAWAY frames")
-		case *wire.StopWaitingFrame://停止等待frame
+		case *wire.StopWaitingFrame: //停止等待frame
 			// LeastUnacked is guaranteed to have LeastUnacked > 0
 			// therefore this will never underflow
 			p.receivedPacketHandler.SetLowerLimit(frame.LeastUnacked - 1)
-		case *wire.RstStreamFrame:// 关闭stream的frame
+		case *wire.RstStreamFrame: // 关闭stream的frame
 			err = s.handleRstStreamFrame(frame)
-		case *wire.WindowUpdateFrame:// 窗口更新的Frame
+		case *wire.WindowUpdateFrame: // 窗口更新的Frame
 			err = s.handleWindowUpdateFrame(frame)
 		case *wire.BlockedFrame:
 			s.peerBlocked = true
 		case *wire.PingFrame:
-		case *wire.AddAddressFrame://收到了AddAddressFrame的话，要更新路径
+		case *wire.AddAddressFrame: //收到了AddAddressFrame的话，要更新路径
 			if s.pathManager != nil {
 				err = s.pathManager.handleAddAddressFrame(frame)
 				s.schedulePathsFrame()
@@ -541,7 +542,7 @@ func (s *session) handleFrames(fs []wire.Frame, p *path) error {
 			s.pathsLock.RLock()
 			for i := 0; i < int(frame.NumPaths); i++ {
 				s.remoteRTTs[frame.PathIDs[i]] = frame.RemoteRTTs[i]
-				if frame.RemoteRTTs[i] >= 30 * time.Minute {
+				if frame.RemoteRTTs[i] >= 30*time.Minute {
 					// Path is potentially failed
 					s.paths[frame.PathIDs[i]].potentiallyFailed.Set(true)
 				}
@@ -582,7 +583,7 @@ func (s *session) handlePacket(p *receivedPacket) {
 }
 
 func (s *session) handleStreamFrame(frame *wire.StreamFrame) error {
-	str, err := s.streamsMap.GetOrOpenStream(frame.StreamID)//拿到对应的stream
+	str, err := s.streamsMap.GetOrOpenStream(frame.StreamID) //拿到对应的stream
 
 	if err != nil {
 		return err
@@ -621,6 +622,7 @@ func (s *session) handleWindowUpdateFrame(frame *wire.WindowUpdateFrame) error {
 	_, err := s.flowControlManager.UpdateWindow(frame.StreamID, frame.ByteOffset)
 	return err
 }
+
 // 重置stream
 func (s *session) handleRstStreamFrame(frame *wire.RstStreamFrame) error {
 	str, err := s.streamsMap.GetOrOpenStream(frame.StreamID)
@@ -634,6 +636,7 @@ func (s *session) handleRstStreamFrame(frame *wire.RstStreamFrame) error {
 	str.RegisterRemoteError(fmt.Errorf("RST_STREAM received with code %d", frame.ErrorCode))
 	return s.flowControlManager.ResetStream(frame.StreamID, frame.ByteOffset)
 }
+
 //  handleAckFrame 将会让对应的path的sentPacketHandler来处理该ack，然后更新session的rttStats
 func (s *session) handleAckFrame(frame *wire.AckFrame) error {
 	pth := s.paths[frame.PathID] // 每一个 ackFrame 都会包含一个pathID
@@ -704,7 +707,7 @@ func (s *session) closePaths() {
 		s.pathsLock.RLock()
 		for _, pth := range s.paths {
 			select {
-			case pth.closeChan<-nil:
+			case pth.closeChan <- nil:
 			default:
 				// Don't block
 			}
@@ -776,6 +779,7 @@ func (s *session) handleCloseError(closeErr closeError) error {
 	}
 	return s.sendConnectionClose(quicErr)
 }
+
 //  这个时候证明有stream写入了数据，需要发送Packet
 func (s *session) sendPacket() error {
 	return s.scheduler.sendPacket(s)
@@ -788,14 +792,30 @@ func (s *session) sendPackedPacket(packet *packedPacket, pth *path) error {
 		Frames:          packet.frames,
 		Length:          protocol.ByteCount(len(packet.raw)),
 		EncryptionLevel: packet.encryptionLevel,
-	})//这个是为了让该path记录一下它发送的报文
+	}) //这个是为了让该path记录一下它发送的报文
 	if err != nil {
 		return err
 	}
-	pth.sentPacket<-struct{}{}//告诉该path已经发送了一些报文了，该path根据该通知更新一些计时器之类的东西
+	pth.sentPacket <- struct{}{} //告诉该path已经发送了一些报文了，该path根据该通知更新一些计时器之类的东西
 
 	s.logPacket(packet, pth.pathID)
-	return pth.conn.Write(packet.raw)//
+	return pth.conn.Write(packet.raw) //
+}
+func (s *session) trysendPackedPacket(packet *packedPacket, pth *path) error {
+	defer putPacketBuffer(packet.raw)
+	err := pth.sentPacketHandler.SentPacket(&ackhandler.Packet{
+		PacketNumber:    packet.number,
+		Frames:          packet.frames,
+		Length:          protocol.ByteCount(len(packet.raw)),
+		EncryptionLevel: packet.encryptionLevel,
+	}) //这个是为了让该path记录一下它发送的报文
+	if err != nil {
+		return err
+	}
+	pth.sentPacket <- struct{}{} //告诉该path已经发送了一些报文了，该path根据该通知更新一些计时器之类的东西
+
+	s.logPacket(packet, pth.pathID)
+	return pth.conn.Write(packet.raw) //
 }
 
 func (s *session) sendConnectionClose(quicErr *qerr.QuicError) error {
@@ -854,8 +874,9 @@ func (s *session) AcceptStream() (Stream, error) {
 func (s *session) OpenStream() (Stream, error) {
 	return s.streamsMap.OpenStream()
 }
+
 // this function opens an unreliableStream
-func (s *session) OpenUnreliableStream()(Stream, error){
+func (s *session) OpenUnreliableStream() (Stream, error) {
 	return s.streamsMap.OpenUnreliableStream()
 }
 
@@ -874,6 +895,7 @@ func (s *session) queueResetStreamFrame(id protocol.StreamID, offset protocol.By
 	}, s.paths[protocol.InitialPathID])
 	s.scheduleSending()
 }
+
 // 这个函数被传递给 streamMap ，streamMap可以使用该函数来创建新的流
 func (s *session) newStream(id protocol.StreamID) *stream {
 	// TODO: find a better solution for determining which streams contribute to connection level flow control
@@ -882,7 +904,7 @@ func (s *session) newStream(id protocol.StreamID) *stream {
 	} else {
 		s.flowControlManager.NewStream(id, true)
 	}
-	return newStreamType(id, s.scheduleSending, s.queueResetStreamFrame, s.flowControlManager,s)
+	return newStreamType(id, s.scheduleSending, s.queueResetStreamFrame, s.flowControlManager, s)
 }
 
 // garbageCollectStreams goes through all streams and removes EOF'ed streams
@@ -901,7 +923,7 @@ func (s *session) garbageCollectStreams() {
 	})
 }
 
-func (s *session) sendPublicReset(rejectedPacketNumber protocol.PacketNumber) error {//
+func (s *session) sendPublicReset(rejectedPacketNumber protocol.PacketNumber) error { //
 	utils.Infof("Sending public reset for connection %x, packet number %d", s.connectionID, rejectedPacketNumber)
 	// XXX: seems reasonable to send on the pathID 0, but this can change
 	return s.paths[protocol.InitialPathID].conn.Write(wire.WritePublicReset(s.connectionID, rejectedPacketNumber, 0))
@@ -921,9 +943,9 @@ func (s *session) tryQueueingUndecryptablePacket(p *receivedPacket) {
 		utils.Debugf("Received undecryptable packet from %s after the handshake: %#v, %d bytes data", p.remoteAddr.String(), p.publicHeader, len(p.data))
 		return
 	}
-	if len(s.undecryptablePackets)+1 > protocol.MaxUndecryptablePackets {// 队列满了之后会开始计时，溢出的报文会被丢弃
+	if len(s.undecryptablePackets)+1 > protocol.MaxUndecryptablePackets { // 队列满了之后会开始计时，溢出的报文会被丢弃
 		// if this is the first time the undecryptablePackets runs full, start the timer to send a Public Reset
-		if s.receivedTooManyUndecrytablePacketsTime.IsZero() {//
+		if s.receivedTooManyUndecrytablePacketsTime.IsZero() { //
 			s.receivedTooManyUndecrytablePacketsTime = time.Now()
 			s.maybeResetTimer()
 		}
@@ -933,6 +955,7 @@ func (s *session) tryQueueingUndecryptablePacket(p *receivedPacket) {
 	utils.Infof("Queueing packet 0x%x for later decryption", p.publicHeader.PacketNumber)
 	s.undecryptablePackets = append(s.undecryptablePackets, p)
 }
+
 //尝试解密报文
 func (s *session) tryDecryptingQueuedPackets() {
 	for _, p := range s.undecryptablePackets {
@@ -940,6 +963,7 @@ func (s *session) tryDecryptingQueuedPackets() {
 	}
 	s.undecryptablePackets = s.undecryptablePackets[:0]
 }
+
 // 拿到windowUpdateFrame,这个force是什么意思？
 func (s *session) getWindowUpdateFrames(force bool) []*wire.WindowUpdateFrame {
 	updates := s.flowControlManager.GetWindowUpdates(force)
@@ -950,13 +974,13 @@ func (s *session) getWindowUpdateFrames(force bool) []*wire.WindowUpdateFrame {
 	return res
 }
 
-func (s *session) LocalAddr() net.Addr {//返回本地的主地址
+func (s *session) LocalAddr() net.Addr { //返回本地的主地址
 	// XXX (QDC): do it like with MPTCP (master initial path), what if it is closed?
 	return s.paths[0].conn.LocalAddr()
 }
 
 // RemoteAddr returns the net.Addr of the client
-func (s *session) RemoteAddr() net.Addr {//返回远端的地址
+func (s *session) RemoteAddr() net.Addr { //返回远端的地址
 	// XXX (QDC): do it like with MPTCP (master initial path), what if it is closed?
 	return s.paths[0].conn.RemoteAddr()
 }

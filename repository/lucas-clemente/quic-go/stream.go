@@ -31,7 +31,7 @@ type stream struct {
 
 	readPosInFrame int
 	writeOffset    protocol.ByteCount // 写入的offset
-	readOffset     protocol.ByteCount// 读取的offset
+	readOffset     protocol.ByteCount // 读取的offset
 
 	// Once set, the errors must not be changed!
 	err error
@@ -47,19 +47,18 @@ type stream struct {
 	// resetRemotely is set if RegisterRemoteError() is called
 	resetRemotely utils.AtomicBool
 
-	frameQueue   *streamFrameSorter
-	frameBuffer  *streamFrameBuffer
+	frameQueue *streamFrameSorter
 
 	readChan     chan struct{}
 	readDeadline time.Time
 
-	dataForWriting []byte
-	finSent        utils.AtomicBool
-	rstSent        utils.AtomicBool
-	writeChan      chan struct{}
-	writeDeadline  time.Time
-	unreliableMarker bool
-	sess *session
+	dataForWriting     []byte
+	finSent            utils.AtomicBool
+	rstSent            utils.AtomicBool
+	writeChan          chan struct{}
+	writeDeadline      time.Time
+	unreliableMarker   bool
+	sess               *session
 	flowControlManager flowcontrol.FlowControlManager
 }
 
@@ -85,13 +84,13 @@ func newStream(StreamID protocol.StreamID,
 		streamID:           StreamID,
 		flowControlManager: flowControlManager,
 		frameQueue:         newStreamFrameSorter(),
-		frameBuffer: 				newStreamFrameBuffer(),
 		readChan:           make(chan struct{}, 1),
 		writeChan:          make(chan struct{}, 1),
 	}
 	s.ctx, s.ctxCancel = context.WithCancel(context.Background())
 	return s
 }
+
 // newStream creates a new Stream
 func newStreamType(StreamID protocol.StreamID,
 	onData func(),
@@ -103,27 +102,24 @@ func newStreamType(StreamID protocol.StreamID,
 		streamID:           StreamID,
 		flowControlManager: flowControlManager,
 		frameQueue:         newStreamFrameSorter(),
-		frameBuffer: 				newStreamFrameBuffer(),
 		readChan:           make(chan struct{}, 1),
 		writeChan:          make(chan struct{}, 1),
-		sess: sess,
+		sess:               sess,
 	}
 	s.frameQueue.sess = sess
-	s.frameBuffer.sess = sess
 	s.frameQueue.SID = StreamID
-	s.frameBuffer.SID = StreamID
 	s.frameQueue.unreliableMarker = s.frameQueue.sess.streamsMap.unreliableStreamMark[StreamID]
-	s.frameBuffer.unreliableMarker = s.frameQueue.unreliableMarker
 	s.unreliableMarker = s.frameQueue.unreliableMarker
 	s.ctx, s.ctxCancel = context.WithCancel(context.Background())
 	return s
 }
+
 // Read implements io.Reader. It is not thread safe!
-func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]byte当中
+func (s *stream) Read(p []byte) (int, error) { // 读取一定的字节数到[]byte当中
 	s.mutex.Lock()
 	err := s.err
 	s.mutex.Unlock()
-	if s.cancelled.Get() || s.resetLocally.Get() {//如果该流被重置了，或者是被关闭了，那么该流就返回零
+	if s.cancelled.Get() || s.resetLocally.Get() { //如果该流被重置了，或者是被关闭了，那么该流就返回零
 		return 0, err
 	}
 	if s.finishedReading.Get() {
@@ -131,10 +127,10 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 	}
 
 	bytesRead := 0
-	for bytesRead < len(p) {//向字节数组当中填写数据，直到其被填满
+	for bytesRead < len(p) { //向字节数组当中填写数据，直到其被填满
 		s.mutex.Lock()
-		frame := s.frameBuffer.Head()//从frameQueue.Head()拿数据
-		if frame == nil && bytesRead > 0 {//如果暂时没有可用的帧的话，且已经读取到了部分的数据
+		frame := s.frameQueue.Head()       //从frameQueue.Head()拿数据
+		if frame == nil && bytesRead > 0 { //如果暂时没有可用的帧的话，且已经读取到了部分的数据
 			err = s.err
 			s.mutex.Unlock()
 			return bytesRead, err
@@ -149,8 +145,8 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 			}
 
 			deadline := s.readDeadline
-			if !deadline.IsZero() && !time.Now().Before(deadline) {//如果已经超时的话
-				err = errDeadline//会返回超时错误
+			if !deadline.IsZero() && !time.Now().Before(deadline) { //如果已经超时的话
+				err = errDeadline //会返回超时错误
 				break
 			}
 
@@ -161,16 +157,16 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 			}
 
 			s.mutex.Unlock()
-			if deadline.IsZero() {//这说明读取的deadline没有被设置，那就不存在超时的问题，因此就一直等待数据的到来吧！！！
-				<-s.readChan//一旦放入了一个frame就会通知,但是就算放入了一个frame，这个frame也可能不在前面，可能造成frame = s.frameQueue.Head()拿到的是nil
+			if deadline.IsZero() { //这说明读取的deadline没有被设置，那就不存在超时的问题，因此就一直等待数据的到来吧！！！
+				<-s.readChan //一旦放入了一个frame就会通知,但是就算放入了一个frame，这个frame也可能不在前面，可能造成frame = s.frameQueue.Head()拿到的是nil
 			} else {
 				select {
 				case <-s.readChan:
-				case <-time.After(deadline.Sub(time.Now()))://超时的话
+				case <-time.After(deadline.Sub(time.Now())): //超时的话
 				}
 			}
 			s.mutex.Lock()
-			frame = s.frameBuffer.Head()//这个函数并不会消耗frameQueue的frame数量
+			frame = s.frameQueue.Head() //这个函数并不会消耗frameQueue的frame数量
 		}
 		s.mutex.Unlock()
 
@@ -178,7 +174,7 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 			return bytesRead, err
 		}
 
-		m := utils.Min(len(p)-bytesRead, int(frame.DataLen())-s.readPosInFrame)//第一个是缓存还有多大空间要读，第二个是指本帧内还能提供多大的内容供读取
+		m := utils.Min(len(p)-bytesRead, int(frame.DataLen())-s.readPosInFrame) //第一个是缓存还有多大空间要读，第二个是指本帧内还能提供多大的内容供读取
 
 		if bytesRead > len(p) {
 			return bytesRead, fmt.Errorf("BUG: bytesRead (%d) > len(p) (%d) in stream.Read", bytesRead, len(p))
@@ -187,8 +183,7 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 			return bytesRead, fmt.Errorf("BUG: readPosInFrame (%d) > frame.DataLen (%d) in stream.Read", s.readPosInFrame, frame.DataLen())
 		}
 
-
-		copy(p[bytesRead:], frame.Data[s.readPosInFrame:])//复制内容
+		copy(p[bytesRead:], frame.Data[s.readPosInFrame:]) //复制内容
 
 		s.readPosInFrame += m
 		bytesRead += m
@@ -200,10 +195,10 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 		}
 		s.onData() // so that a possible WINDOW_UPDATE is sent
 
-		if s.readPosInFrame >= int(frame.DataLen()) {//怎么可能大于？？？,应该是等于吧？也就是本帧读完
+		if s.readPosInFrame >= int(frame.DataLen()) { //怎么可能大于？？？,应该是等于吧？也就是本帧读完
 			fin := frame.FinBit
 			s.mutex.Lock()
-			s.frameBuffer.Pop()//只有该帧内的内容被读取完了才会调用该函数
+			s.frameQueue.Pop() //只有该帧内的内容被读取完了才会调用该函数
 			s.mutex.Unlock()
 			if fin {
 				s.finishedReading.Set(true)
@@ -214,6 +209,7 @@ func (s *stream) Read(p []byte) (int, error) {// 读取一定的字节数到[]by
 
 	return bytesRead, nil
 }
+
 // func (s *session) scheduleSending() {
 //	select {
 //	case s.sendingScheduled <- struct{}{}:
@@ -234,24 +230,24 @@ func (s *stream) Write(p []byte) (int, error) {
 		return 0, nil
 	}
 
-	s.dataForWriting = make([]byte, len(p))//将写入的数据放入到缓冲区里面
+	s.dataForWriting = make([]byte, len(p)) //将写入的数据放入到缓冲区里面
 	copy(s.dataForWriting, p)
-	s.onData()//通知session存在数据要发送了
+	s.onData() //通知session存在数据要发送了
 
 	var err error
 	for {
-		deadline := s.writeDeadline//一般这个是为0的
-		if !deadline.IsZero() && !time.Now().Before(deadline) {//如果deadline不是0，且已经超时的话
+		deadline := s.writeDeadline                             //一般这个是为0的
+		if !deadline.IsZero() && !time.Now().Before(deadline) { //如果deadline不是0，且已经超时的话
 			err = errDeadline
 			break
 		}
-		if s.dataForWriting == nil || s.err != nil {//此时证明缓冲区已经被发送完毕了，因此可以退出for循环了
+		if s.dataForWriting == nil || s.err != nil { //此时证明缓冲区已经被发送完毕了，因此可以退出for循环了
 			break
 		}
 
 		s.mutex.Unlock()
 		if deadline.IsZero() {
-			<-s.writeChan//一旦有人从缓冲区中拿数据，都会通过该管道通知的
+			<-s.writeChan //一旦有人从缓冲区中拿数据，都会通过该管道通知的
 		} else {
 			select {
 			case <-s.writeChan:
@@ -264,8 +260,8 @@ func (s *stream) Write(p []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	if s.err != nil {//如果报错的话
-		return len(p) - len(s.dataForWriting), s.err//返回发出的报文字节数和错误的原因
+	if s.err != nil { //如果报错的话
+		return len(p) - len(s.dataForWriting), s.err //返回发出的报文字节数和错误的原因
 	}
 	return len(p), nil
 }
@@ -279,6 +275,7 @@ func (s *stream) lenOfDataForWriting() protocol.ByteCount {
 	s.mutex.Unlock()
 	return l
 }
+
 // 某一个接口会通过这个拿到数据
 func (s *stream) getDataForWriting(maxBytes protocol.ByteCount) []byte {
 	s.mutex.Lock()
@@ -289,7 +286,7 @@ func (s *stream) getDataForWriting(maxBytes protocol.ByteCount) []byte {
 	}
 
 	var ret []byte
-	if protocol.ByteCount(len(s.dataForWriting)) > maxBytes {//如果缓冲区当中的数据大于所需要的话，那么久拿到所需要的数据
+	if protocol.ByteCount(len(s.dataForWriting)) > maxBytes { //如果缓冲区当中的数据大于所需要的话，那么久拿到所需要的数据
 		ret = s.dataForWriting[:maxBytes]
 		s.dataForWriting = s.dataForWriting[maxBytes:]
 	} else {
@@ -338,19 +335,11 @@ func (s *stream) AddStreamFrame(frame *wire.StreamFrame) error {
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	if !s.unreliableMarker {//可靠
-		err = s.frameQueue.Push(frame)
-		for s.frameQueue.Head()!=nil {
-			s.frameBuffer.Push(s.frameQueue.Pop())
-		}
-	}else {//非可靠
-		err = s.frameBuffer.Push(frame)
-		s.frameQueue.Push(frame)
-		for s.frameQueue.Head()!=nil {
-			s.frameQueue.Pop()
-		}
+	if !s.unreliableMarker { //可靠
+		err = s.frameQueue.Push(frame, true)
+	} else { //非可靠
+		s.frameQueue.Push(frame, true)
 	}
-
 
 	if err != nil && err != errDuplicateStreamData {
 		return err
@@ -407,8 +396,8 @@ func (s *stream) SetDeadline(t time.Time) error {
 // CloseRemote makes the stream receive a "virtual" FIN stream frame at a given offset
 func (s *stream) CloseRemote(offset protocol.ByteCount) {
 	if val, ok := s.sess.streamsMap.unreliableStreamMark[s.streamID]; ok {
-		s.AddStreamFrame(&wire.StreamFrame{UnreliableMarker:val,FinBit: true, Offset: offset,})
-	}else{
+		s.AddStreamFrame(&wire.StreamFrame{UnreliableMarker: val, FinBit: true, Offset: offset})
+	} else {
 		s.AddStreamFrame(&wire.StreamFrame{FinBit: true, Offset: offset})
 	}
 

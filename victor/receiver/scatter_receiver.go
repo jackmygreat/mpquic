@@ -64,10 +64,9 @@ func pullflv(url, filename string) {
 		err error
 	)
 
-	controlstream, err := net.Dial("tcp","127.0.0.1:5258")
+	controlstream, err := net.Dial("tcp", "127.0.0.1:5258")
 	HandleError(err)
 	defer controlstream.Close()
-
 
 	err = w.Open(filename)
 	nazalog.Assert(nil, err)
@@ -92,11 +91,9 @@ func pullflv(url, filename string) {
 	defer videostream.Close()
 	HandleError(err)
 
-
-
 	HandleError(err)
 	//----------------------------------------------
-	time.Sleep(time.Millisecond*4000)
+	time.Sleep(time.Millisecond * 1000)
 	//---------------------------------------------
 	//第一块为了接收metaTag
 	now := time.Now()
@@ -130,11 +127,11 @@ func pullflv(url, filename string) {
 	for {
 
 		controlinfo := make([]byte, 20) //一个tagHeader 一个pretagsize videotagdata:前5个字节
-		l5 := time.Now()
+
 		_, err := io.ReadFull(controlstream, controlinfo) // recieve the size
-		length += time.Since(l5)
+
 		str := string(controlinfo[0:3])
-		if str == "fin" || pos == 3025{
+		if str == "fin" || pos == 3001 {
 			fmt.Println("正常结束！！！")
 			break
 		}
@@ -151,47 +148,65 @@ func pullflv(url, filename string) {
 		if tag.Header.Type == httpflv.TagTypeVideo && tag.Raw[httpflv.TagHeaderSize] == httpflv.AVCKeyFrame {
 			// keyFrame，使用可靠流传输
 			deadline := time.Now().Add(time.Millisecond * 33)
-			l2 := time.Now()
+
 			_, err = io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
-			length += time.Since(l2)
+
 			pos++
-			if deadline.After(time.Now()) {//提前收到的话
+			if deadline.After(time.Now()) { //提前收到的话
 				time.Sleep(deadline.Sub(time.Now()))
-			}else{
+			} else {
 				length += time.Now().Sub(deadline)
-				cnt += 1
+				if length > time.Second*2 {
+					cnt += 1
+				}
 
 			}
 			//fmt.Println("key:",len(tag.Raw))
 		} else {
 			// 非keyFrame，使用非可靠流传输
 			if ((pos)%30-1)%3 == 0 { //sleep 34 ms
-				time.Sleep(time.Millisecond * 34)
-				l3 := time.Now()
+				deadline := time.Now().Add(time.Millisecond * 34)
+
 				_, err = io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
-				length += time.Since(l3)
-				if err!=nil{
+
+				if err != nil {
 					HandleError(err)
 				}
 				pos++
+				if deadline.After(time.Now()) { //提前收到的话
+					time.Sleep(deadline.Sub(time.Now()))
+				} else {
+					length += time.Now().Sub(deadline)
+					if length > time.Second*2 {
+						cnt += 1
+					}
 
+				}
 
 			} else {
-				time.Sleep(time.Millisecond * 33)
-				l4 := time.Now()
+				deadline := time.Now().Add(time.Millisecond * 34)
+
 				_, err = io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
-				length += time.Since(l4)
-				if err!=nil{
+
+				if err != nil {
 					HandleError(err)
 				}
 				pos++
+				if deadline.After(time.Now()) { //提前收到的话
+					time.Sleep(deadline.Sub(time.Now()))
+				} else {
+					length += time.Now().Sub(deadline)
+					if length > time.Second*2 {
+						cnt += 1
+					}
+
+				}
 
 			}
 			//fmt.Println("nonekey:",len(tag.Raw))
 		}
-		l1 := time.Now()
+
 		w.WriteTag(tag)
-		length += time.Since(l1)
 
 	}
 	fmt.Println(length)

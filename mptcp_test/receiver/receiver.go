@@ -33,7 +33,10 @@ const quicServerAddr = "127.0.0.1:9999"
 var elapsed time.Duration
 var size int64
 var cnt int64 = 0
+var keycnt int64 = 0
 var pos int64 = -1
+var fillCnt int64 = 0
+var frameInterval time.Duration = time.Millisecond * 33
 
 func HandleError(err error) {
 	if err != nil {
@@ -69,9 +72,6 @@ func pullflv(url, filename string) {
 	err = w.WriteRaw(httpflv.FLVHeader)
 	nazalog.Assert(nil, err)
 
-
-
-
 	//---------------------------------------------
 	//打开三个流：key帧流、控制流、pb流
 	controlstream, err := net.Dial("tcp", url)
@@ -86,7 +86,7 @@ func pullflv(url, filename string) {
 	HandleError(err)
 
 	//----------------------------------------------
-	time.Sleep(time.Millisecond*4000)
+	time.Sleep(time.Millisecond * 1000)
 	//---------------------------------------------
 	//第一块为了接收metaTag
 	now := time.Now()
@@ -119,10 +119,10 @@ func pullflv(url, filename string) {
 	var length time.Duration
 	for {
 
-		controlinfo := make([]byte, 20) //一个tagHeader 一个pretagsize videotagdata:前5个字节
+		controlinfo := make([]byte, 20)                   //一个tagHeader 一个pretagsize videotagdata:前5个字节
 		_, err := io.ReadFull(controlstream, controlinfo) // recieve the size
 		str := string(controlinfo[0:3])
-		if str == "fin" || pos == 3025{
+		if str == "fin" || pos == 3001 {
 			fmt.Println("正常结束！！！")
 			break
 		}
@@ -138,52 +138,89 @@ func pullflv(url, filename string) {
 		//判断该帧类型是keyFrame或者是其他的Frame类型
 		if tag.Header.Type == httpflv.TagTypeVideo && tag.Raw[httpflv.TagHeaderSize] == httpflv.AVCKeyFrame {
 			// keyFrame，使用可靠流传输
-			deadline := time.Now().Add(time.Millisecond * 33)
-			l2:=time.Now()
+			var deadline time.Time
+			if ((pos)%30-1)%3 == 0 {
+				deadline = time.Now().Add(time.Millisecond * 34)
+			} else {
+				deadline = time.Now().Add(time.Millisecond * 33)
+			}
+
 			_, err = io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
-			length+=time.Since(l2)
+
 			pos++
-			if deadline.After(time.Now()) {//提前收到的话
+			if deadline.After(time.Now()) { //提前收到的话
 				time.Sleep(deadline.Sub(time.Now()))
-			}else{
-				length += time.Now().Sub(deadline)
-				cnt += 1
+			} else {
+				temp := time.Now().Sub(deadline)
+				length += temp
+				temp += time.Millisecond * 33
+				if length > time.Second*2 {
+					fillCnt += (int64)(temp / frameInterval)
+					cnt += 1
+					keycnt += 1
+				}
 
 			}
 			//fmt.Println("key:",len(tag.Raw))
 		} else {
 			// 非keyFrame，使用非可靠流传输
 			if ((pos)%30-1)%3 == 0 { //sleep 34 ms
-				time.Sleep(time.Millisecond * 34)
-				l3 := time.Now()
+				deadline := time.Now().Add(time.Millisecond * 34)
+
 				_, err = io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
-				length += time.Since(l3)
-				if err!=nil{
+
+				if err != nil {
 					HandleError(err)
 				}
 				pos++
+				if deadline.After(time.Now()) { //提前收到的话
+					time.Sleep(deadline.Sub(time.Now()))
+				} else {
+					temp := time.Now().Sub(deadline)
+					length += temp
+					temp += time.Millisecond * 33
+					if length > time.Second*2 {
+						fillCnt += (int64)(temp / frameInterval)
+						cnt += 1
+					}
 
+				}
 
 			} else {
-				time.Sleep(time.Millisecond * 33)
-				l4 := time.Now()
+				deadline := time.Now().Add(time.Millisecond * 34)
+
 				_, err = io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
-				length += time.Since(l4)
-				if err!=nil{
+
+				if err != nil {
 					HandleError(err)
 				}
 				pos++
+				if deadline.After(time.Now()) { //提前收到的话
+					time.Sleep(deadline.Sub(time.Now()))
+				} else {
+					temp := time.Now().Sub(deadline)
+					length += temp
+					temp += time.Millisecond * 33
+					if length > time.Second*2 {
+						fillCnt += (int64)(temp / frameInterval)
+						cnt += 1
+					}
 
+				}
 			}
 			//fmt.Println("nonekey:",len(tag.Raw))
 		}
-		l1 := time.Now()
+
 		w.WriteTag(tag)
-		length += time.Since(l1)
 
 	}
-	fmt.Println(length)
-	fmt.Println(cnt)
+	if length <= time.Second*2 {
+		fmt.Println(time.Second * 0)
+	} else {
+		fmt.Println(length - time.Second*2)
+	}
+	fmt.Println(cnt, keycnt)
+	fmt.Println("fillCnt", fillCnt)
 	fmt.Println(time.Since(now))
 }
 

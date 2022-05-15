@@ -1,0 +1,15 @@
+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
+统计B帧数量：ffprobe -v quiet -show_frames h264_no_b.flv | grep "pict_type=B" | wc -l
+去除B帧：ffmpeg -i bbb100s.flv -vcodec libx264 -x264opts "bframes=0" h264_no_p.h264
+I帧固定间隔：ffmpeg -i <input> -vcodec libx264 -x264-params keyint=120:scenecut=0 -acodec copy out.mp4
+I帧固定间隔：ffmpeg -i 100s.flv -vcodec libx264 -x264-params keyint=120:scenecut=0 -acodec copy out.flv
+按秒切：ffmpeg -ss 00:00:00.666  -t 100 -i video.flv -codec copy 100s.flv
+SSIM: ffmpeg -i src.mp4(原视频)  -i dst.mp4(失真后的视频)  -lavfi ssim="stats_file=ssim.log" -f null -
+转换封装格式并只保留视频：ffmpeg -i bbb_sunflower_1080p_30fps_normal.mp4 -vcodec copy -an bbb_sunflower_1080p_30fps_normal.flv
+ffmpeg -report -i 100s_frame_random.flv -vcodec libx264 -x264-params keyint=30:scenecut=0 -acodec copy out.flv
+调整帧率的同时不重新编码：# Extract video stream
+										 ffmpeg -y -i input_video.mp4 -c copy -f h264 output_raw_bitstream.h264
+										 # Extract audio stream
+										 ffmpeg -y -i input_video.mp4 -vn -acodec copy output_audio.aac
+										 # Remux with new FPS
+										 ffmpeg -y -r 24 -i output_raw_bitstream.h264 -i output-audio.aac -c copy output.mp4

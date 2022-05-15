@@ -13,6 +13,7 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 	quic "github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go"
 	"math/big"
+	"net"
 	"os"
 	"time"
 )
@@ -23,19 +24,20 @@ func HandleError(err error) {
 		os.Exit(1)
 	}
 }
+
 var FilePath string
+
 func ParseCommandLine() {
 	flag.StringVar(&FilePath, "f", " ", "-f file.flv")
 	flag.Parse()
 }
-
 
 //a sender function that generates frames and sends them over mpquic to the reciever.
 //input args - deviceID and mpquic-server address
 
 func main() {
 	ParseCommandLine()
-	if len(FilePath)<=1 {
+	if len(FilePath) <= 1 {
 		fmt.Println("./flvparse -f filename.flv")
 		return
 	}
@@ -53,12 +55,17 @@ func main() {
 	}
 
 	quicServerAddr := "127.0.0.1:5252"
-	pushflv(quicServerAddr,FilePath)
+	pushflv(quicServerAddr, FilePath)
 	HandleError(err)
-
 
 }
 func pushflv(url, filename string) {
+
+	listen, err := net.Listen("tcp","127.0.0.1:5258")
+	controlstream2,err := listen.Accept()
+	HandleError(err)
+	defer controlstream2.Close()
+
 	//mpquic config
 	quicConfig := &quic.Config{
 		CreatePaths: true, //要求创建多路径
@@ -70,30 +77,27 @@ func pushflv(url, filename string) {
 	tags, err := httpflv.ReadAllTagsFromFLVFile(filename)
 	HandleError(err)
 
-	controlstream, err := sess.OpenStream()
-	HandleError(err)
-	defer controlstream.Close()
+	//controlstream, err := sess.OpenStream()
+
 
 	keystream, err := sess.OpenStream()
 	defer keystream.Close()
 	HandleError(err)
 
-	pbstream, err := sess.OpenUnreliableStream()
+	pbstream, err := sess.OpenStream()
 	HandleError(err)
 	defer pbstream.Close()
-
-
 
 	if err != nil || len(tags) == 0 {
 		nazalog.Fatalf("read tags from flv file failed. err=%+v", err)
 	}
 	nazalog.Infof("read tags from flv file succ. len of tags=%d", len(tags))
 	now := time.Now()
-	loopPush(tags, pbstream,controlstream,keystream)
+	loopPush(tags, pbstream, controlstream2, keystream)
 	fmt.Println(time.Since(now))
-	time.Sleep(time.Second*2)
+	time.Sleep(time.Second * 2)
 }
-func loopPush(tags []httpflv.Tag, pbstream quic.Stream,controlstream quic.Stream,keystream quic.Stream) {
+func loopPush(tags []httpflv.Tag, pbstream quic.Stream, controlstream net.Conn, keystream quic.Stream) {
 	var (
 		totalBaseTS        uint32 // 每轮最后更新
 		prevTS             uint32 // 上一个tag
@@ -121,15 +125,15 @@ func loopPush(tags []httpflv.Tag, pbstream quic.Stream,controlstream quic.Stream
 				if totalBaseTS == 0 {
 					h.TimestampAbs = 0
 
-					controlInfo := make([]byte,11+4) //控制信息
-					_ = copy(controlInfo[11:15],tag.Raw[h.MsgLen+11:]) // 控制信息+previousTag（4字节）
-					_ = copy(controlInfo[0:11],tag.Raw[0:11])
-					if _,err := controlstream.Write(controlInfo); err != nil {
+					controlInfo := make([]byte, 11+4)                   //控制信息
+					_ = copy(controlInfo[11:15], tag.Raw[h.MsgLen+11:]) // 控制信息+previousTag（4字节）
+					_ = copy(controlInfo[0:11], tag.Raw[0:11])
+					if _, err := controlstream.Write(controlInfo); err != nil {
 						nazalog.Errorf("write data error. err=%v", err)
 						return
 					}
 
-					if _,err := controlstream.Write(tag.Raw[11:11+h.MsgLen]); err != nil {//传输数据
+					if _, err := controlstream.Write(tag.Raw[11 : 11+h.MsgLen]); err != nil { //传输数据
 						nazalog.Errorf("write data error. err=%v", err)
 						return
 					}
@@ -171,7 +175,7 @@ func loopPush(tags []httpflv.Tag, pbstream quic.Stream,controlstream quic.Stream
 				diffTick := n - firstTagTick
 				diffTS := h.TimestampAbs - firstTagTS
 				if diffTick < int64(diffTS) {
-					//time.Sleep(time.Duration(int64(diffTS)-diffTick) * time.Millisecond)
+					time.Sleep(time.Duration(int64(diffTS)-diffTick) * time.Millisecond)
 				}
 			} else {
 				// 所有轮的第一个tag
@@ -183,41 +187,38 @@ func loopPush(tags []httpflv.Tag, pbstream quic.Stream,controlstream quic.Stream
 			}
 			//---------------------------------------------------------
 
-
-
-			controlInfo := make([]byte,20) //控制信息
-			_ = copy(controlInfo[16:20],tag.Raw[h.MsgLen+11:]) // 控制信息+previousTag（4字节）
-			_ = copy(controlInfo[0:16],tag.Raw[0:16])
-			if _,err := controlstream.Write(controlInfo); err != nil {
+			controlInfo := make([]byte, 20)                     //控制信息
+			_ = copy(controlInfo[16:20], tag.Raw[h.MsgLen+11:]) // 控制信息+previousTag（4字节）
+			_ = copy(controlInfo[0:16], tag.Raw[0:16])
+			if _, err := controlstream.Write(controlInfo); err != nil {
 				nazalog.Errorf("write data error. err=%v", err)
 				return
 			}
-			if tag.Header.Type == httpflv.TagTypeVideo && tag.Raw[httpflv.TagHeaderSize]==httpflv.AVCKeyFrame{
+			if tag.Header.Type == httpflv.TagTypeVideo && tag.Raw[httpflv.TagHeaderSize] == httpflv.AVCKeyFrame {
 				// keyFrame，使用可靠流传输
-				if _,err := keystream.Write(tag.Raw[16:11+h.MsgLen]); err != nil {//传输数据
+				if _, err := keystream.Write(tag.Raw[16 : 11+h.MsgLen]); err != nil { //传输数据
 					nazalog.Errorf("write data error. err=%v", err)
 					return
 				}
-			}else{
+			} else {
 				//非keyFrame，使用非可靠流传输
-				if _,err := pbstream.Write(tag.Raw[16:11+h.MsgLen]); err != nil {//传输数据
+				if _, err := pbstream.Write(tag.Raw[16 : 11+h.MsgLen]); err != nil { //传输数据
 					nazalog.Errorf("write data error. err=%v", err)
 					return
 				}
 			}
 
 			//fmt.Println(controlInfo,tag.Raw[11:11+h.MsgLen])
-			time.Sleep(time.Millisecond*33)
+
 			prevTS = h.TimestampAbs
 		} // tags for loop
 
 		totalBaseTS = prevTS + 1
-		controlInfo := make([]byte,11+4)
-		copy(controlInfo,[]byte("fin"))
+		controlInfo := make([]byte, 11+4)
+		copy(controlInfo, []byte("fin"))
 		controlstream.Write(controlInfo)
 		break
-	}// tag 发送完
-
+	} // tag 发送完
 
 }
 

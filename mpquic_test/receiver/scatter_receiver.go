@@ -13,8 +13,8 @@ import (
 	"github.com/q191201771/naza/pkg/nazalog"
 	"github.com/yyleeshine/mpquic/repository/lucas-clemente/quic-go"
 	"io"
-
 	"math/big"
+	"net"
 	"os"
 	"time"
 )
@@ -32,6 +32,11 @@ const quicServerAddr = "127.0.0.1:5252"
 
 var elapsed time.Duration
 var size int64
+var cnt int64 = 0
+var keyCnt int64 = 0
+var pos int64 = -1
+var frameInterval time.Duration = time.Millisecond * 30
+var fillcnt int64 = 0
 
 func HandleError(err error) {
 	if err != nil {
@@ -43,26 +48,34 @@ func HandleError(err error) {
 
 func main() {
 	ParseCommandLine()
-	if len(FilePath) <= 1 {
-		fmt.Println("./flvparse -f filename.flv")
-		return
-	}
+	FilePath = "./output.flv"
 	fmt.Println(len(FilePath))
 	f, err := os.OpenFile("./clientlog.txt", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	defer f.Close()
 	if err != nil {
 		panic(err)
 	}
-	now := time.Now()
+
 	pullflv(quicServerAddr, FilePath)
-	fmt.Println(time.Since(now))
+
 }
 
 func pullflv(url, filename string) {
+
+	f, er := os.OpenFile("./clientlog.txt", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	defer f.Close()
+	if er != nil {
+		panic(er)
+	}
+
 	var (
 		w   httpflv.FLVFileWriter
 		err error
 	)
+
+	controlstream, err := net.Dial("tcp", "127.0.0.1:5258")
+	HandleError(err)
+	defer controlstream.Close()
 
 	err = w.Open(filename)
 	nazalog.Assert(nil, err)
@@ -78,19 +91,22 @@ func pullflv(url, filename string) {
 
 	//---------------------------------------------
 	//打开三个流：key帧流、控制流、pb流
-	controlstream, err := sess.AcceptStream()
-	defer controlstream.Close()
-	HandleError(err)
+	//controlstream, err := sess.AcceptStream()
+
 	keystream, err := sess.AcceptStream()
 	defer keystream.Close()
 	HandleError(err)
 	videostream, err := sess.AcceptStream()
 	defer videostream.Close()
 	HandleError(err)
+
+	HandleError(err)
 	//----------------------------------------------
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 1000)
 	//---------------------------------------------
 	//第一块为了接收metaTag
+	now := time.Now()
+
 	metacontrolinfo := make([]byte, 11+4)
 
 	_, err2 := io.ReadFull(controlstream, metacontrolinfo) //recieve the size
@@ -105,14 +121,26 @@ func pullflv(url, filename string) {
 	copy(metatag.Raw[metatag.Header.DataSize+11:metatag.Header.DataSize+15], metacontrolinfo[11:15])
 	w.WriteTag(metatag)
 	//----------------------------------------------
+	controlinfo := make([]byte, 20) //一个tagHeader 一个pretagsize videotagdata:前5个字节
 
-	preTagTS := uint32(0)
+	_, err = io.ReadFull(controlstream, controlinfo) // recieve the first key frame
+	tag := httpflv.Tag{}
+	tag.Header = parseTagHeader(controlinfo[0:11]) // 解析tagHeader
+	tag.Raw = make([]byte, tag.Header.DataSize+15) //  原始数据
+	copy(tag.Raw[0:16], controlinfo[0:16])
+	copy(tag.Raw[tag.Header.DataSize+11:tag.Header.DataSize+15], controlinfo[16:20])
+	_, err = io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
+	w.WriteTag(tag)
+
+	var length time.Duration
 	for {
+
 		controlinfo := make([]byte, 20) //一个tagHeader 一个pretagsize videotagdata:前5个字节
 
 		_, err := io.ReadFull(controlstream, controlinfo) // recieve the size
+
 		str := string(controlinfo[0:3])
-		if str == "fin" {
+		if str == "fin" || pos == 3001 {
 			fmt.Println("正常结束！！！")
 			break
 		}
@@ -124,26 +152,98 @@ func pullflv(url, filename string) {
 		tag.Raw = make([]byte, tag.Header.DataSize+15) //  原始数据
 		copy(tag.Raw[0:16], controlinfo[0:16])
 		copy(tag.Raw[tag.Header.DataSize+11:tag.Header.DataSize+15], controlinfo[16:20])
+
 		//判断该帧类型是keyFrame或者是其他的Frame类型
 		if tag.Header.Type == httpflv.TagTypeVideo && tag.Raw[httpflv.TagHeaderSize] == httpflv.AVCKeyFrame {
 			// keyFrame，使用可靠流传输
+			var deadline time.Time
+			timeStamp := time.Now()
+			if ((pos)%30-1)%3 == 0 {
+				deadline = time.Now().Add(time.Millisecond * 34)
+			} else {
+				deadline = time.Now().Add(time.Millisecond * 33)
+			}
 
-			io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
+			_, err = io.ReadFull(keystream, tag.Raw[16:11+tag.Header.DataSize])
+
+			pos++
+			if deadline.After(time.Now()) { //提前收到的话
+				f.WriteString(string(time.Now().Sub(timeStamp).Milliseconds()) + "\n")
+				time.Sleep(deadline.Sub(time.Now()))
+			} else {
+				f.WriteString(time.Now().Sub(timeStamp).String() + "\n")
+				temp := time.Now().Sub(deadline)
+				length += temp
+				temp += time.Millisecond * 33
+				if length > time.Second*2 {
+					fillcnt += (int64)(temp / frameInterval)
+					cnt += 1
+					keyCnt += 1
+
+				}
+			}
 			//fmt.Println("key:",len(tag.Raw))
 		} else {
 			// 非keyFrame，使用非可靠流传输
+			if ((pos)%30-1)%3 == 0 { //sleep 34 ms
 
-			io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+				deadline := time.Now().Add(time.Millisecond * 34)
+				_, err = io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+
+				if err != nil {
+					HandleError(err)
+				}
+				pos++
+				if deadline.After(time.Now()) { //提前收到的话
+					time.Sleep(deadline.Sub(time.Now()))
+				} else {
+					temp := time.Now().Sub(deadline)
+					length += temp
+					temp += time.Millisecond * 33
+					if length > time.Second*2 {
+						fillcnt += (int64)(temp / frameInterval)
+						cnt += 1
+					}
+				}
+
+			} else {
+
+				deadline := time.Now().Add(time.Millisecond * 33)
+				_, err = io.ReadFull(videostream, tag.Raw[16:11+tag.Header.DataSize])
+
+				if err != nil {
+					HandleError(err)
+				}
+				pos++
+				if deadline.After(time.Now()) { //提前收到的话
+					time.Sleep(deadline.Sub(time.Now()))
+				} else {
+					temp := time.Now().Sub(deadline)
+					length += temp
+					temp += time.Millisecond * 33
+					if length > time.Second*2 {
+						fillcnt += (int64)(temp / frameInterval)
+						cnt += 1
+					}
+				}
+			}
 			//fmt.Println("nonekey:",len(tag.Raw))
 		}
+
 		w.WriteTag(tag)
-		dura := time.Duration(tag.Header.Timestamp-preTagTS) * time.Millisecond
-		preTagTS = tag.Header.Timestamp
-		time.Sleep(dura)
 
 	}
+	if length <= time.Second*2 {
+		fmt.Println(time.Second * 0)
+	} else {
+		fmt.Println(length - time.Second*2)
+	}
 
+	fmt.Println(cnt, keyCnt)
+	fmt.Println("fillCnt", fillcnt)
+	fmt.Println(time.Since(now))
 }
+
 func generateTLSConfig() *tls.Config {
 
 	key, err := rsa.GenerateKey(rand.Reader, 1024)
